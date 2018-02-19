@@ -1,6 +1,6 @@
 import utils
 import unittest
-
+import itertools
 
 class UtilsCase(unittest.TestCase):
 
@@ -15,6 +15,18 @@ class UtilsCase(unittest.TestCase):
         with self.assertRaises(Exception) as context:
             utils.row_to_block(40)
             self.assertTrue('Too many rows in array' in context.exception)
+
+    def test_all_subsets(self):
+        raw_spot_collections = ["2018-01-24_E14_X31",
+                                "2018-01-24_E15_X31",
+                                "2018-01-24_N21_Pan",
+                                "2018-01-24_N22_Cal",
+                                "2018-01-24_N23_X31",
+                                ]
+        ss = itertools.combinations(raw_spot_collections,2)
+        print(list(ss))
+
+
 
 
 if __name__ == '__main__':
