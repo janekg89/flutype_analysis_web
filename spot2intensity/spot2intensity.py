@@ -80,13 +80,13 @@ class Grid(object):
     def horizontal_points(self, with_off_set=False):
         x = np.linspace(0, self.rectangle.horizontal.x, self.shape.x)
         y = np.linspace(0, self.rectangle.horizontal.y, self.shape.x)
-        return zip(x, y)
+        return list(zip(x, y))
 
     @property
     def vertical_points(self, with_off_set=False):
         x = np.linspace(0, self.rectangle.vertical.x, self.shape.y)
         y = np.linspace(0, self.rectangle.vertical.y, self.shape.y)
-        return zip(x, y)
+        return list(zip(x, y))
 
     @property
     def abs_vertical_spacing(self):
@@ -154,7 +154,7 @@ def create_patches(pt, x_spacing, y_spacing):
 
 def create_circle_patches(center, radius):
     rec = patches.Circle(
-        center=center,
+        xy=center,
         radius=radius,
         fill=False,  # remove background
         linewidth=1,
