@@ -206,8 +206,10 @@ def plot_array_block_correlation(data,col_pair,study):
             ax.set_ylabel('{}'.format(col_pair[1]))
             ax.set_title('Block {} of {}'.format(block_name, col_pair))
 
-        file_path = 'results/{}/block_correlations/{}_block_{}'.format(study, col_pair, block_name)
+        file_path = 'results/{}/block_correlations_new/{}_block_{}'.format(study, col_pair, block_name)
         utils.ensure_dir(file_path)
+        print(file_path)
+
         plt.savefig(file_path)
 
 def plot_array_correlation(data,col_pair,study,append_name=""):
@@ -272,7 +274,8 @@ def plot_array_correlation(data,col_pair,study,append_name=""):
         ax.set_ylabel('{}'.format(col_pair[1]))
         ax.set_title('Correltation of {}'.format(col_pair))
 
-    file_path = 'results/{}/block_correlations/{}_{}'.format(study, col_pair,append_name)
+    file_path = 'results/{}/block_correlations_new/{}_{}'.format(study, col_pair,append_name)
+    print(file_path)
     utils.ensure_dir(file_path)
     plt.savefig(file_path)
 
@@ -336,8 +339,9 @@ def plot_array_correlation_constructed(data, col_pair, study):
             ax.set_ylabel('{}'.format(col_pair[1]))
             ax.set_title('Constructed {}'.format(col_pair))
 
-        file_path = 'results/{}/block_correlations/{}_constructed_normalized'.format(study, col_pair)
+        file_path = 'results/{}/block_correlations_new/{}_constructed_normalized'.format(study, col_pair)
         utils.ensure_dir(file_path)
+        print(file_path)
         plt.savefig(file_path)
 
 def plot_array_block_correlation_constructed(data,col_pair,study):
@@ -388,7 +392,8 @@ def plot_array_block_correlation_constructed(data,col_pair,study):
             ax.set_ylabel('{}'.format(col_pair[1]))
             ax.set_title('Block {} of {}'.format(block_name, col_pair))
 
-        file_path = 'results/{}/block_correlations/{}_block_{}_const_norm'.format(study, col_pair, block_name)
+        file_path = 'results/{}/block_correlations_new/{}_block_{}_const_norm'.format(study, col_pair, block_name)
+        print(file_path)
         utils.ensure_dir(file_path)
         plt.savefig(file_path)
 
@@ -447,6 +452,8 @@ if __name__ == '__main__':
 
     study = "2018-01-24_microarray"
     spots = Spot.objects.filter(raw_spot__raw_spot_collection__sid__in=raw_spot_collections)
+    spots = spots.filter(spot_collection__sid="quant1")
+
     d=a.Data(spots=spots)
     spots = d._reformat(spots)
     spots = d._add_replica_row(spots)
@@ -461,26 +468,31 @@ if __name__ == '__main__':
         for collection_name, collection_data in spots.groupby('Collection'):
 
             fig = plot_block_correlation_mean_linked_concentrations(collection_data, blocks, collection_name, max_unzoomed)
-            file_path = 'results/{}/block_correlations/{}_blocks_{}_mean_on_block'.format(study,collection_name,blocks)
+            file_path = 'results/{}/block_correlations_new/{}_blocks_{}_mean_on_block'.format(study,collection_name,blocks)
             utils.ensure_dir(file_path)
             print(file_path)
             plt.savefig(file_path)
 
-    
-    
+
+      
 
 
+    
     for blocks in blocks_sets:
         for collection_name, collection_data in spots.groupby('Collection'):
             fig = plot_block_correlation(collection_data, blocks, collection_name, max_unzoomed)
-            file_path = 'results/{}/block_correlations/{}_blocks_{}'.format(study,collection_name,blocks)
+            file_path = 'results/{}/block_correlations_new/{}_blocks_{}'.format(study,collection_name,blocks)
             utils.ensure_dir(file_path)
             print(file_path)
             plt.savefig(file_path)
+
+    
+            
     collections = spots.groupby("Collection").groups
     col_pairs = itertools.combinations(collections, 2)
     for col_pair in col_pairs:
         fig = plot_array_block_correlation(spots,col_pair=col_pair,study=study)
+
 
     
     collections = spots.groupby("Collection").groups
@@ -488,7 +500,7 @@ if __name__ == '__main__':
     for col_pair in col_pairs:
         fig = plot_array_correlation(spots,col_pair=col_pair,study=study)
         
-        
+     
 
     spots = d._append_con_diff_features(spots)
     spots = d._append_normalized_features(spots, which_features="Constructed Feature", with_in="Collection")
@@ -499,14 +511,14 @@ if __name__ == '__main__':
         plot_array_correlation_constructed(spots, col_pair=col_pair, study=study)
     collections = spots.groupby("Collection").groups
     col_pairs = itertools.combinations(collections, 2)
+
   
     for col_pair in col_pairs:
         plot_array_block_correlation_constructed(spots, col_pair=col_pair, study=study)
-    
-    
-    
 
     """
+    
+
     spots = d._append_con_diff_features(spots)
     spots = d._append_normalized_features(spots, which_features="Constructed Feature", with_in="Collection")
     spots = spots[spots["Normalized Feature"]]
@@ -514,8 +526,13 @@ if __name__ == '__main__':
     for blocks in blocks_sets:
         for collection_name, collection_data in spots.groupby('Collection'):
             fig = plot_block_correlation_constructed(collection_data, blocks, collection_name, max_unzoomed)
-            file_path = 'results/{}/block_correlations/{}_blocks_{}_const_norm'.format(study, collection_name, blocks)
+            file_path = 'results/{}/block_correlations_new/{}_blocks_{}_const_norm'.format(study, collection_name, blocks)
             utils.ensure_dir(file_path)
             print(file_path)
             plt.savefig(file_path)
+    
+    
+
+
+
 

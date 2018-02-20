@@ -6,6 +6,7 @@ import numpy as np
 from utils import row_to_block
 import copy
 
+
 import matplotlib.pyplot as plt
 from scipy.stats import norm
 import matplotlib.mlab as mlab
@@ -30,7 +31,7 @@ class Data(object):
 
     def __init__(self,spots ,**kwargs):
         self.spots = spots
-        #self.data = self._reformat_add_replica_pivot_table(**kwargs)
+        self.data = []
         self.kwargs = kwargs
 
 
@@ -172,7 +173,7 @@ class Data(object):
             assert index in spots.columns,"Have need to create the row {}".format(index)
 
         data = spots.pivot_table(index=indexes,columns="Ligand Batch", values="Intensity")
-        data.reset_index(inplace=True)
+        #data.reset_index(inplace=True)
         return data
 
     def _reformat_add_replica_pivot_table(self,mean_on=None, reformat=True):
