@@ -9,6 +9,8 @@ from skimage import feature
 from skimage.filters import roberts
 import cv2
 import skimage.io
+from PIL import Image, ImageSequence
+
 
 
 
@@ -136,15 +138,31 @@ class Grid(object):
 
 class Collection(object):
 
-    def __init__(self, grids, jpg_path,pep_path, name, study):
+    def __init__(self, grids,  name, study, jpg_path=None,tif_a_path=None,tif_b_path=None,pep_path=None,):
         self.study = study
         self.name = name
         self.grids = grids
         self.png_path = jpg_path
-        self.image = skimage.io.imread(jpg_path, 0)
+        self.image = skimage.io.imread(jpg_path, 0) if jpg_path is not None else None
+        self.tif_a_path = tif_a_path
+        self.tif_b_path = tif_b_path
         self.pep_path = pep_path
-        self.gal = pd.read_csv(pep_path, sep='\t', index_col="ID")
-        self.r,self.g,self.b = self.color_splitted_image()
+        self.gal = pd.read_csv(pep_path, sep='\t', index_col="ID") if pep_path is not None else None
+        self.r,self.g,self.b = self.color_splitted_image() if jpg_path is not None else (None,None,None)
+        self.tifs_a = self.read_tif(self.tif_a_path) if tif_a_path is not None else None
+        self.tifs_b = self.read_tif(self.tif_b_path) if tif_b_path is not None else None
+
+
+    def read_tif(self,tif):
+        """
+        path - Path to the multipage-tiff file
+        n_images - Number of pages in the tiff file
+        """
+        img = Image.open(tif)
+        images = []
+        for i, page in enumerate(ImageSequence.Iterator(img)):
+            images.append(page.copy())
+        return images
 
     def color_splitted_image(self):
         r, g, b = np.dsplit(self.image, 3)
@@ -154,8 +172,14 @@ class Collection(object):
         b = b.squeeze()
         return r,g,b
 
-    def create_values(self):
+    def create_values(self,of="tif_a"):
+        """
+        of can be "tif_b",tif_a"
+        :param of:
+        :return:
+        """
         spot_images = []
+        intensities2_b = []
         intensities = []
         intensities2 = []
         circles = []
@@ -163,20 +187,31 @@ class Collection(object):
         circle_qual = []
         std_intensities2 = []
 
+
         values = {"spot_images":spot_images,
                   "squares": squares,
                   "circles": circles,
                   "intensities":intensities,
                   "intensities2":intensities2,
+                  "intensities2_b":intensities2_b,
                   "std_intensities2":std_intensities2,
                   "circle_qual":circle_qual,
                   }
+
+        images_dict = {"tif_a": np.asarray(self.tifs_a[1]), "tif_b": np.asarray(self.tifs_b[1])}
+        image = images_dict.get(of)
+        if of == "tif_a":
+            image_b = images_dict["tif_b"]
+        elif of == "tif_b":
+            image_b = images_dict["tif_a"]
+
 
         for grid in self.grids:
             print("Claculating grid starting at:{}".format(grid))
 
             #grid.add_row(where="top")
             #grid.add_row(where="bottom")
+
 
             for x, y in grid.points:
                 delta_x = int(grid.abs_horizontal_spacing)
@@ -194,28 +229,34 @@ class Collection(object):
                 if y0 < 0:
                     y0 = 0
 
-                spot_imag = self.r[y0:y0 + delta_x, x0:x0 + delta_y]
+                spot_imag = image[y0:y0 + delta_x, x0:x0 + delta_y]
+                spot_imag_b = image_b[y0:y0 + delta_x, x0:x0 + delta_y]
+
                 spot_images.append(spot_imag)
                 intensities.append(spot_imag.sum())
 
-                circx, circy, radius, accums = find_circle_coordinates(spot_imag, 0, 0)
+                circx, circy, radius, accums = find_circle_coordinates(spot_imag)
                 circle_qual.append(accums)
                 circ = create_circle_patches((circy + x0, circx + y0), radius)
                 circles.append(circ)
 
                 circ_points = np.array([value for (y, x), value in np.ndenumerate(spot_imag) if
                                         contained_in_circle(circx, x, circy, y, radius)])
+                circ_points_b = np.array([value for (y, x), value in np.ndenumerate(spot_imag_b) if
+                                        contained_in_circle(circx, x, circy, y, radius)])
 
                 std_intensities2.append(circ_points.std())
                 intensities2.append(circ_points.mean())
+                intensities2_b.append(circ_points_b.mean())
+
 
         return values
 
-    def pd_complete_spots(self):
+    def pd_complete_spots(self, **kwargs):
 
         spots = self.gal
-        values = self.create_values()
-        for key,value in values.iteritems():
+        values = self.create_values(**kwargs)
+        for key,value in values.items():
             spots[key] = value
         return spots
 
@@ -275,15 +316,16 @@ def rectangle_reshape(x_0, y_0, x_spacing, y_spacing):
     return x_min, x_max, y_min, y_max
 
 
-def find_circle_coordinates(image, x0, y0):
+def find_circle_coordinates(image):
 
     pic = copy.deepcopy(image)
 
 
     #pic[pic > 120] = 0
     #pic[pic < 1] = 0
-    edges = roberts(image)
-    #edges = feature.canny(pic)
+    #edges = roberts(pic)
+    edges = feature.canny(pic)
+
 
     # Detect two radii
     hough_radii = np.arange(10, 60, 2)
@@ -294,4 +336,13 @@ def find_circle_coordinates(image, x0, y0):
     accums, cx, cy, radii = hough_circle_peaks(hough_res, hough_radii, min_xdistance=hough_radii.min(),
                                                min_ydistance=hough_radii.min(),
                                                total_num_peaks=1)
-    return cy[0] + y0, cx[0] + x0, radii[0], accums[0]
+    if len(cx) == 0 :
+        radii = [20]
+        accums = [0]
+        x,y = image.shape
+
+        cy = [y/2]
+        cx = [x/2]
+
+
+    return cy[0] , cx[0], radii[0], accums[0]
