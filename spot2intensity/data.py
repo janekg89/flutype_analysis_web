@@ -3,7 +3,8 @@ from spot2intensity import Point,Rectangle, Grid, Collection
 
 
 STUDY = "2018-01-24_microarray"
-DIRECTORY = ["180124_N21_Pan", "180124_E14_X31", "180124_N22_Cal", "180124_N23_X31", "180124_E15_X31"]
+MEASUREMENTS = ["180124_N21_Pan", "180124_E14_X31", "180124_N22_Cal", "180124_N23_X31", "180124_E15_X31"]
+DIRECTORY = ["data/{}/{}".format(STUDY,measurement) for measurement in MEASUREMENTS]
 IMAGE_PATHS = ["180124_N21_Pan.gif",
                 '180124_E14_X31_Allantois_100_600_635_635_2_635.gif',
                 '180124_N22_Cal_100_600_635_635_635.gif',

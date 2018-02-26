@@ -6,7 +6,9 @@ import matplotlib.pyplot as plt
 import copy
 from skimage.transform import hough_circle, hough_circle_peaks
 from skimage import feature
+from skimage.filters import roberts
 import cv2
+import skimage.io
 
 
 
@@ -139,10 +141,18 @@ class Collection(object):
         self.name = name
         self.grids = grids
         self.png_path = jpg_path
-        self.image = cv2.imread(jpg_path, 0)
+        self.image = skimage.io.imread(jpg_path, 0)
         self.pep_path = pep_path
         self.gal = pd.read_csv(pep_path, sep='\t', index_col="ID")
+        self.r,self.g,self.b = self.color_splitted_image()
 
+    def color_splitted_image(self):
+        r, g, b = np.dsplit(self.image, 3)
+
+        r = r.squeeze()
+        g = g.squeeze()
+        b = b.squeeze()
+        return r,g,b
 
     def create_values(self):
         spot_images = []
@@ -165,15 +175,16 @@ class Collection(object):
         for grid in self.grids:
             print("Claculating grid starting at:{}".format(grid))
 
-            grid.add_row(where="top")
-            grid.add_row(where="bottom")
-            
+            #grid.add_row(where="top")
+            #grid.add_row(where="bottom")
+
             for x, y in grid.points:
                 delta_x = int(grid.abs_horizontal_spacing)
                 delta_y = int(grid.abs_vertical_spacing)
                 x = int(x)
                 y = int(y)
                 rec = create_patches((x, y), delta_x, delta_y)
+
                 squares.append(rec)
                 x0, y0 = rec.xy
                 x0 = int(x0)
@@ -183,7 +194,7 @@ class Collection(object):
                 if y0 < 0:
                     y0 = 0
 
-                spot_imag = self.image[y0:y0 + delta_x, x0:x0 + delta_x]
+                spot_imag = self.r[y0:y0 + delta_x, x0:x0 + delta_y]
                 spot_images.append(spot_imag)
                 intensities.append(spot_imag.sum())
 
@@ -250,7 +261,7 @@ def create_circle_patches(center, radius):
         radius=radius,
         fill=False,  # remove background
         linewidth=1,
-        edgecolor='r',
+        edgecolor='b',
     )
 
     return rec
@@ -265,13 +276,17 @@ def rectangle_reshape(x_0, y_0, x_spacing, y_spacing):
 
 
 def find_circle_coordinates(image, x0, y0):
+
     pic = copy.deepcopy(image)
-    pic[pic > 120] = 0
-    pic[pic < 1] = 0
-    edges = feature.canny(pic, sigma=0.5)
+
+
+    #pic[pic > 120] = 0
+    #pic[pic < 1] = 0
+    edges = roberts(image)
+    #edges = feature.canny(pic)
 
     # Detect two radii
-    hough_radii = np.arange(40, 80, 2)
+    hough_radii = np.arange(10, 60, 2)
 
     hough_res = hough_circle(edges, hough_radii)
 
