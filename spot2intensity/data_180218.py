@@ -9,7 +9,11 @@ def c_data(numb):
     data_dict["name"] = "slide_{}".format(numb)
     data_dict["jpg_path"] = "data/2018-02-18_microarray/slide_{}/afterIncubation/{}_80_600_rot_635.jpg".format(numb,numb)
     data_dict["tif_a_path"] = "data/2018-02-18_microarray/slide_{}/afterIncubation/{}_80_600_rot.tif".format(numb,numb)
+    data_dict["jpg_path"] = "data/2018-02-18_microarray/slide_{}/afterIncubation/{}_80_600_rot_635.jpg".format(numb,
+                                                                                                               numb)
     data_dict["tif_b_path"] = "data/2018-02-18_microarray/slide_{}/slide_{} 600 80 alle Farben.tif".format(numb,numb)
+    data_dict["grid_a_path"] = "data/2018-02-18_microarray/slide_{}/im_grid_after_600_80_635.jpg".format(numb, numb)
+    data_dict["grid_b_path"] = "data/2018-02-18_microarray/slide_{}/im_grid_before_600_80_635.jpg".format(numb,numb)
     data_dict["study"] =  "2018-02-18_microarray"
     data_dict["pep_path"] = "data/2018-02-18_microarray/base_pep.gal"
     return data_dict
@@ -30,6 +34,8 @@ def load_data():
     data_47 = c_data(n)
     data_47["tif_a_path"] = None
     data_47["jpg_path"] = None
+    data_47["grid_a_path"] = None
+    data_47["grid_b_path"] = None
 
     COLLECTIONS[c_data(n)["name"]] = Collection(grids=grids, **data_47)
     ########################################################################
@@ -44,6 +50,8 @@ def load_data():
     data_46 = c_data(n)
     data_46["tif_a_path"] = None
     data_46["jpg_path"] = None
+    data_46["grid_a_path"] = None
+    data_46["grid_b_path"] = None
     COLLECTIONS[c_data(n)["name"]]= Collection(grids=grids, **data_46)
     ########################################################################
     recs = [Rectangle(
@@ -200,19 +208,19 @@ def load_data():
     COLLECTIONS[c_data(n)["name"]]= Collection(grids=grids, **c_data(n))
     ########################################################################
     recs = [Rectangle(
-        Point(38, 155),
-        Point(56, 3485),
-        Point(992, 3486),
-        Point(983, 158),)]
+        Point(39, 155),
+        Point(55, 3495),
+        Point(988, 3487),
+        Point(979, 156),)]
     grids = c_grids(recs)
     n=28
     COLLECTIONS[c_data(n)["name"]]= Collection(grids=grids, **c_data(n))
     ########################################################################
     recs = [Rectangle(
-        Point(41, 148),
-        Point(51, 3511),
-        Point(976, 3488),
-        Point(984, 163),)]
+        Point(42, 144),
+        Point(43, 3485),
+        Point(988, 3464),
+        Point(984, 144),)]
     grids = c_grids(recs)
     n=27
     COLLECTIONS[c_data(n)["name"]]= Collection(grids=grids, **c_data(n))
@@ -281,6 +289,8 @@ def load_data():
     data_20 = c_data(n)
     data_20["tif_a_path"] = None
     data_20["jpg_path"] = None
+    data_20["grid_a_path"] = None
+    data_20["grid_b_path"] = None
     COLLECTIONS[c_data(n)["name"]]= Collection(grids=grids, **data_20)
     ########################################################################
     recs = [Rectangle(
@@ -293,6 +303,8 @@ def load_data():
     data_19 = c_data(n)
     data_19["tif_a_path"] = None
     data_19["jpg_path"] = None
+    data_19["grid_a_path"] = None
+    data_19["grid_b_path"] = None
     COLLECTIONS[c_data(n)["name"]]= Collection(grids=grids, **data_19)
 
     return COLLECTIONS

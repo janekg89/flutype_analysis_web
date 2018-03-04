@@ -6,11 +6,10 @@ import matplotlib.pyplot as plt
 import copy
 from skimage.transform import hough_circle, hough_circle_peaks
 from skimage import feature
-from skimage.filters import roberts
-import cv2
 import skimage.io
 from PIL import Image, ImageSequence
-
+import attr
+import pickle
 
 
 
@@ -135,10 +134,56 @@ class Grid(object):
             self.rectangle.corner2 = self.rectangle.corner2 + shift
             self.rectangle.corner3 = self.rectangle.corner3 + shift
 
+@attr.s
+class Spots(object):
+    df = attr.ib()
+    b_im = attr.ib(default=None)
+    a_im = attr.ib(default=None)
+
+
+    def plot_grid(self, on="a_im", **kwargs):
+        image = getattr(self,on)
+        if not kwargs.get("ax"):
+            fig, ax = plt.subplots(1, **kwargs)
+        else:
+            ax = kwargs.get("ax")
+
+        ax.imshow(np.asarray(image), cmap="gray")
+        for i, spot in self.df.iterrows():
+            circ = create_circle_patches(spot["circles"].center, spot["circles"].radius)
+            rec = patches.Rectangle((spot["squares"].get_xy()),
+                                    spot["squares"].get_width(),
+                                    spot["squares"].get_height(),
+                                    fill=False,  # remove background
+                                    linewidth=1,
+                                    edgecolor='g',
+                                    )
+            ax.add_patch(circ)
+            ax.add_patch(rec)
+
+    @staticmethod
+    def load_pickel(collection):
+        directory = "data/{}/{}/".format(collection.study, collection.name)
+        with open(directory + "spots_class", 'r') as f:
+            spots = pickle.load(f)
+        return spots
+
+    def select_by_circlequal(self,low_tresh,inplace=True):
+        selected = self.df.loc[self.df["circle_qual"] > low_tresh * self.df["circle_qual"].max()]
+        if not inplace:
+            return selected
+        self.df = selected
+
+
+    def add_virus(self,virus):
+        self.df["Virus"] = virus
+
+    def add_c_name(self, c_name):
+        self.df["Collection"] = c_name
+
 
 class Collection(object):
-
-    def __init__(self, grids,  name, study, jpg_path=None,tif_a_path=None,tif_b_path=None,pep_path=None,):
+    def __init__(self, grids,  name, study, jpg_path=None,tif_a_path=None,tif_b_path=None,pep_path=None,grid_a_path=None,grid_b_path=None):
         self.study = study
         self.name = name
         self.grids = grids
@@ -149,11 +194,13 @@ class Collection(object):
         self.pep_path = pep_path
         self.gal = pd.read_csv(pep_path, sep='\t', index_col="ID") if pep_path is not None else None
         self.r,self.g,self.b = self.color_splitted_image() if jpg_path is not None else (None,None,None)
-        self.tifs_a = self.read_tif(self.tif_a_path) if tif_a_path is not None else None
-        self.tifs_b = self.read_tif(self.tif_b_path) if tif_b_path is not None else None
+        self.tifs_a = self.read_tif(self.tif_a_path) if tif_a_path is not None else [None,None]
+        self.tifs_b = self.read_tif(self.tif_b_path) if tif_b_path is not None else [None,None]
+        self.grid_a_path = grid_a_path
+        self.grid_b_path = grid_b_path
 
-
-    def read_tif(self,tif):
+    @staticmethod
+    def read_tif(tif):
         """
         path - Path to the multipage-tiff file
         n_images - Number of pages in the tiff file
@@ -205,7 +252,7 @@ class Collection(object):
         elif of == "tif_b":
             image_b = images_dict["tif_a"]
 
-
+        print(self.grids)
         for grid in self.grids:
             print("Claculating grid starting at:{}".format(grid))
 
@@ -258,7 +305,10 @@ class Collection(object):
         values = self.create_values(**kwargs)
         for key,value in values.items():
             spots[key] = value
-        return spots
+        im_b = np.asarray(self.tifs_b[1])
+        im_a = np.asarray(self.tifs_a[1])
+
+        return Spots(df=spots, b_im=im_b, a_im =im_a)
 
 
 
