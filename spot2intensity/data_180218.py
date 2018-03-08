@@ -20,6 +20,7 @@ def c_data(numb):
 
 def c_grids(recs):
     return [Grid(rectangle = rec, shape = copy.deepcopy(BLOCK_SHAPE)) for rec in recs]
+
 def load_data():
 
     ########################################################################

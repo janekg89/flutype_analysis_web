@@ -10,7 +10,8 @@ import skimage.io
 from PIL import Image, ImageSequence
 import attr
 import pickle
-
+from Tkinter import *
+from PIL import ImageTk, Image
 
 
 class Point(object):
@@ -75,6 +76,15 @@ class Rectangle(object):
                 self.corner3.as_tuple,
                 self.corner4.as_tuple,
                 ]
+
+    @property
+    def corners_as_points(self):
+        return [self.corner1,
+                self.corner2,
+                self.corner3,
+                self.corner4,
+                ]
+
 
     @property
     def rotational_angle(self):
@@ -310,7 +320,96 @@ class Collection(object):
 
         return Spots(df=spots, b_im=im_b, a_im =im_a)
 
+    def create_grid(self,shape,on="tiff_a"):
+        tiff_dict = {"tiff_a":self.tifs_a[1],"tiff_b":self.tifs_b[1]}
+        assert tiff_dict[on] is not None, " You have no image loaded"
+        im_array = np.asarray(tiff_dict[on])
+        im_array = im_array * (255.0 / im_array.max())
+        img = Image.fromarray(im_array)
+        self.canvas_microarray(img,shape)
+        #assert all(self.tiff_a[1] is None, self.tiff_b[1]  is None) , "no images loaded"
 
+    def canvas_microarray(self, image, shape):
+        event2canvas = lambda e, c: (c.canvasx(e.x), c.canvasy(e.y))
+        root = Toplevel()
+        img = ImageTk.PhotoImage(image)
+        # setting up a tkinter canvas with scrollbars
+        frame = Frame(root, bd=2, relief=SUNKEN)
+        frame.grid_rowconfigure(0, weight=1)
+        frame.grid_columnconfigure(0, weight=1)
+        xscroll = Scrollbar(frame, orient=HORIZONTAL)
+        xscroll.grid(row=1, column=0, sticky=E + W)
+        yscroll = Scrollbar(frame)
+        yscroll.grid(row=0, column=1, sticky=N + S)
+        canvas = Canvas(frame, bd=0, xscrollcommand=xscroll.set, yscrollcommand=yscroll.set)
+        canvas.grid(row=0, column=0, sticky=N + S + E + W)
+        xscroll.config(command=canvas.xview)
+        yscroll.config(command=canvas.yview)
+        frame.pack(fill=BOTH, expand=1)
+        canvas.create_image(0, 0, image=img, anchor="nw")
+        canvas.config(scrollregion=canvas.bbox(ALL))
+        # function to be called when mouse is clicked
+        grids = [grid.rectangle.corners_as_points for grid in self.grids]
+        grid = grids[0]
+
+        def point2grid(i,event):
+            cx, cy = event2canvas(event, canvas)
+            print ("Point(%d, %d)" % (cx, cy))
+            return Point(cx, cy)
+
+            #grid[i] = Point(cx, cy)
+
+        def left_top_corner(event):
+            # outputting x and y coords to console
+            #point2grid(0,event)
+            cx, cy = event2canvas(event, canvas)
+            print ("Point(%d, %d)" % (cx, cy))
+            #grid[0] = Point(cx, cy)
+            return Point(cx, cy)
+
+        def left_bottom_corner(event):
+            #point2grid(1,event)
+            cx, cy = event2canvas(event, canvas)
+            print ("Point(%d, %d)" % (cx, cy))
+            grid[1] = Point(cx, cy)
+
+        def right_bottom_corner(event):
+            #point2grid(3, event)
+            cx, cy = event2canvas(event, canvas)
+            print ("Point(%d, %d)" % (cx, cy))
+            grid[2] = Point(cx, cy)
+
+        def right_top_corner(event):
+            #point2grid(4,event)
+            cx, cy = event2canvas(event, canvas)
+            print ("Point(%d, %d)" % (cx, cy))
+            grid[3] = Point(cx, cy)
+
+
+        def show_grid(grid,shape):
+            this_grid = Grid(Rectangle(*grid),shape)
+            canvas.delete("all")
+            canvas.create_image(0, 0, image=img, anchor="nw")
+            for x, y in this_grid.points:
+                delta_x = int(this_grid.abs_horizontal_spacing)
+                delta_y = int(this_grid.abs_vertical_spacing)
+                x = int(x)
+                y = int(y)
+                canvas.create_rectangle(x-.5*delta_x,
+                                        y-.5*delta_y,
+                                        x+.5*delta_x,
+                                        y+.5*delta_y,
+                                        outline="green" )
+
+
+        # mouseclick event
+        canvas.bind_all('<KeyPress-q>', left_top_corner)
+        canvas.bind_all('<KeyPress-a>', left_bottom_corner)
+        canvas.bind_all('<KeyPress-w>', right_top_corner)
+        canvas.bind_all('<KeyPress-s>', left_bottom_corner)
+        canvas.bind_all('<KeyPress-q>', show_grid(grid,shape))
+
+        root.mainloop()
 
 def contained_in_circle(x0,x,y0,y,r):
     return r**2 >= (x0-x)**2 + (y0-y)**2
