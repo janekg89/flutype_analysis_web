@@ -55,7 +55,7 @@ class Spots(object):
             spots = pickle.load(f)
         return spots
 
-    def (self,low_tresh,inplace=True):
+    def select_by_circlequal(self,low_tresh,inplace=True):
         selected = self.df.loc[self.df["circle_qual"] > low_tresh * self.df["circle_qual"].max()]
         if not inplace:
             return selected
