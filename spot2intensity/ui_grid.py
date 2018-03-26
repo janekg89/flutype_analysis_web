@@ -1,6 +1,6 @@
 import tkinter as tk
 from PIL import ImageTk, Image
-from model import Point, Grid, Rectangle
+from .model import Point, Grid, Rectangle
 import numpy as np
 
 class FindGrid(tk.Frame):
@@ -45,6 +45,9 @@ class FindGrid(tk.Frame):
         self.canvas.bind_all('<KeyPress-a>', self.left_bottom_corner)
         self.canvas.bind_all('<KeyPress-s>', self.right_bottom_corner)
         self.canvas.bind_all('<KeyPress-g>', self.show_grid)
+        self.canvas.bind_all('<KeyPress-y>', self.save)
+        self.canvas.bind_all('<KeyPress-r>', self.reload)
+
 
     @staticmethod
     def _reformat_image(collection):
@@ -86,3 +89,12 @@ class FindGrid(tk.Frame):
                                     x+.5*delta_x,
                                     y+.5*delta_y,
                                     outline="green")
+
+    def save(self,event):
+        pass
+
+    def reload(self,event):
+        pass
+
+
+
