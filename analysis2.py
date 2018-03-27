@@ -6,7 +6,7 @@ import numpy as np
 import itertools
 import copy
 from utils import checkEqual
-from preprocessing import outlier_filtering, normalize_on_ligand_batch
+from preprocessing import outlier_filtering, normalize_on_ligand_batch, mean_on_analyte_batch,ligand_batch_significance
 from sklearn.decomposition import PCA
 #import libraries for different classifiers
 from sklearn.multioutput import MultiOutputClassifier
@@ -14,6 +14,7 @@ from sklearn.ensemble import RandomForestClassifier, AdaBoostClassifier
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.naive_bayes import GaussianNB
+from sklearn.linear_model import LogisticRegression
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 from sklearn.metrics import confusion_matrix
 #my webapp import
@@ -78,14 +79,15 @@ class Data(object):
         return Data.add_replica(spots_pd)
 
     def x_pca_fit(self):
-        n_components = 2
+        n_components = 3
         pca = PCA(n_components=n_components)
         return pca.fit(self.x)
 
     def x_lda_fit(self):
-        n_components = 2
+        n_components = 3
         clf = LinearDiscriminantAnalysis(n_components=n_components)
         return clf.fit(self.x, self.y.values.argmax(axis=1))
+
 
 
 
@@ -128,6 +130,13 @@ class Data(object):
 
     def outlier_filtering(self):
         return Data(spots_pd= outlier_filtering(self.spots_pd,on="Collection"))
+
+    def mean_on_analyte_batch(self):
+        return mean_on_analyte_batch(self.spots_pd)
+
+    def ligand_batch_significance(self):
+        return ligand_batch_significance(self.mean_on_analyte_batch())
+
 
 
 
@@ -190,19 +199,23 @@ class Analysis(object):
         self.data = data
 
         self.classifier_names = [#"Nearest Neighbors",
-                                 "Decision Tree",
+                                 #"Decision Tree",
                                  # "Random Forest",
                                  # "AdaBoost",
-                                 # "Gaussian NB",
-                                 "LDA"]
+                                 #"Gaussian NB",
+                                 #"LDA",
+                                "LogisticRegression",
+                                 ]
 
         self.classifiers = [
             #KNeighborsClassifier(3),  # three nearest neighbors
-            DecisionTreeClassifier(random_state=1),
+            #DecisionTreeClassifier(random_state=1),
             #RandomForestClassifier(n_estimators=np.shape(self.train_data)[1], random_state=1),
             #AdaBoostClassifier(),
             #GaussianNB(),
-            #LinearDiscriminantAnalysis(n_components=5)
+            #GaussianNB(),
+            #LinearDiscriminantAnalysis(n_components=5),
+            LogisticRegression(multi_class ="multinomial",solver='lbfgs'),
         ]
 
 
@@ -219,27 +232,31 @@ class Analysis(object):
              d["Model"] = d.apply(self._fit, axis=1, args=(self.data,))
              print("*"*5+"Predict"+"*"*5)
              d["Predictions"] = d.apply(self._predict , axis=1, args =(self.data,))
-             print("*"*5+"Confusion Matrix"+"*"*5)
+             #print("*"*5+"Confusion Matrix"+"*"*5)
 
-             d["Confusion Matrix"] = d.apply(self._confusion_matrix, axis=1, args=(self.data,))
-             print("*"*5+"Score"+"*"*5)
+             #d["Confusion Matrix"] = d.apply(self._confusion_matrix, axis=1, args=(self.data,))
+             #print("*"*5+"Score"+"*"*5)
 
-             d["Score"] = d.apply(self._score, axis=1, args=(self.data,))
-             print("*"*5+"Score by Collection"+"*"*5)
+             #d["Score"] = d.apply(self._score, axis=1, args=(self.data,))
+             #print("*"*5+"Score by Collection"+"*"*5)
 
-             d["Score by Collection"] = d.apply(self._score_by_collection,axis=1, args=(self.data,))
-             print("*"*5+"Majority Score by Collection"+"*"*5)
+             #d["Score by Collection"] = d.apply(self._score_by_collection,axis=1, args=(self.data,))
+             #print("*"*5+"Majority Score by Collection"+"*"*5)
 
-             d["Majority Score by Collection"] = d.apply(self._majority_score_by_collection, axis=1, args=(self.data,))
-             print("*"*5+"Predictions Count by Collection"+"*"*5)
+             #d["Majority Score by Collection"] = d.apply(self._majority_score_by_collection, axis=1, args=(self.data,))
+             #print("*"*5+"True False"+"*"*5)
 
-             d["Predictions Count by Collection"] =d.apply(self._predicted_count_by_collection, axis=1, args=(self.data,))
-             print("*"*5+"Confusion Matrix by Collection"+"*"*5)
+             d["True False"] =d.apply(self._predicted_count_by_analyte_batch, axis=1, args=(self.data,))
 
-             d["Confusion Matrix by Collection"] = d.apply(self._confusion_matrix_by_collection, axis=1, args=(self.data,))
+             #print("*"*5+"Confusion Matrix by Collection"+"*"*5)
+
+             #d["Confusion Matrix by Collection"] = d.apply(self._confusion_matrix_by_collection, axis=1, args=(self.data,))
 
              frames.append(d)
          self.result = pd.concat(frames, ignore_index=True)
+
+    def complete_information(self):
+        return pd.concat([pd.DataFrame(d) for d in self.result["True False"]])
 
 
 
@@ -372,14 +389,16 @@ class Analysis(object):
         return frames
 
     @staticmethod
-    def _predicted_count_by_collection(train_test_row, data):
+    def _predicted_count_by_analyte_batch(train_test_row, data):
         test_data = data.subset_collection(train_test_row["Test"])
-        frames = {}
-        test_compersion = pd.DataFrame(test_data.y_names, index=test_data.x.index, columns=["y"])
-        test_compersion["Predictions"] = train_test_row["Predictions"]
-        for c_name, c_data in test_compersion.groupby(test_compersion.index.get_level_values("Collection")):
-            frames[c_name] = pd.Series(c_data["Predictions"]).value_counts()
-        return frames
+        test_comperison = pd.DataFrame(test_data.y_names, index=test_data.x.index, columns=["y"])
+        test_comperison["Predictions"] = train_test_row["Predictions"]
+        test_comperison["Test"] = [(train_test_row["Test"])]*len(test_comperison["Predictions"])
+
+        test_comperison["TrueFalse"] = (test_comperison.index.get_level_values("Analyte Batch") == test_comperison["Predictions"]).astype(int)
+
+        return test_comperison.to_dict()
+
 
     @staticmethod
     def norm(data):
