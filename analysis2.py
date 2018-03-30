@@ -78,6 +78,9 @@ class Data(object):
         spots_pd["Intensity"] = spots_pd["Intensity"].astype("float")
         return Data.add_replica(spots_pd)
 
+    def reset_index(self):
+        return Data(spots_pd=self.spots_pd.reset_index())
+
     def x_pca_fit(self):
         n_components = 3
         pca = PCA(n_components=n_components)
@@ -103,6 +106,7 @@ class Data(object):
 
     def subset_collection(self, collections):
         return self._generic_subset(collections,"Collection")
+
 
     def subset_ligand_batches(self,ligand_batches):
         return self._generic_subset(ligand_batches,"Ligand Batch")
