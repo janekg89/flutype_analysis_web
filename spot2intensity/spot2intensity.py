@@ -1,17 +1,23 @@
-import matplotlib.patches as patches
+import os
+import copy
+import attr
+import pickle
+import datetime
+
 import pandas as pd
 import numpy as np
+
 import matplotlib.pyplot as plt
-import copy
+import matplotlib.patches as patches
+
 from skimage.transform import hough_circle, hough_circle_peaks
 from skimage import feature
 import skimage.io
 from PIL import Image, ImageSequence
-import attr
-import pickle
-from ui_grid import FindGrid
-from model import Point, Rectangle, Grid
-import tkinter as tk
+
+from .ui_grid import FindGrid
+from .model import Point, Rectangle, Grid
+from utils import ensure_dir
 
 try:
     from six.moves import tkinter as Tk
@@ -50,10 +56,13 @@ class Spots(object):
 
     @staticmethod
     def load_pickel(collection):
-        directory = "data/{}/{}/".format(collection.study, collection.name)
-        with open(directory + "spots_class", 'r') as f:
+        directory = os.path.join(collection.base_path, collection.name)
+        #directory = ( collection.name)
+        with open(os.path.join(directory, "spots_class.pickel"), 'rb') as f:
             spots = pickle.load(f)
         return spots
+
+
 
     def select_by_circlequal(self,low_tresh,inplace=True):
         selected = self.df.loc[self.df["circle_qual"] > low_tresh * self.df["circle_qual"].max()]
@@ -68,9 +77,27 @@ class Spots(object):
     def add_c_name(self, c_name):
         self.df["Collection"] = c_name
 
+    def raw_intensies_pivot(self):
+        return self.df.pivot(index="Row",columns="Column",values="intensities")
+
+
+    def quant1_intensies_pivot(self):
+        return self.df.pivot(index="Row",columns="Column",values="intensities2")
+
+    def before_intensies_pivot(self):
+        return self.df.pivot(index="Row",columns="Column",values="intensities2_b")
+
+    def std_intensies2_pivot(self):
+        return self.df.pivot(index="Row",columns="Column",values="std_intensities2")
+
+    def circle_qual_intensies2_pivot(self):
+        return self.df.pivot(index="Row",columns="Column",values="circle_qual")
+
+
 
 class Collection(object):
-    def __init__(self, grids,  name, study, jpg_path=None,tif_a_path=None,tif_b_path=None,pep_path=None,grid_a_path=None,grid_b_path=None):
+    def __init__(self, grids,  name, study,base, jpg_path=None,tif_a_path=None,tif_b_path=None,pep_path=None,grid_a_path=None,grid_b_path=None, virus =""):
+        self.base_path = base
         self.study = study
         self.name = name
         self.grids = grids
@@ -85,6 +112,19 @@ class Collection(object):
         self.tifs_b = self.read_tif(self.tif_b_path) if tif_b_path is not None else [None,None]
         self.grid_a_path = grid_a_path
         self.grid_b_path = grid_b_path
+        self.collection_meta = self.c_meta_dict()
+        self.collection_steps = self.c_steps_pd()
+        self.virus = virus
+        self.gal_vir = self.gal_vir()
+        self.raw_meta = self.r_meta_dict_raw()
+        self.quant1_meta = self.r_meta_dict_quant1()
+        self.before_meta = self.r_meta_dict_before()
+
+
+    def gal_vir(self):
+        gal_vir = copy.deepcopy(self.gal)
+        gal_vir["Name"] = self.virus
+        return gal_vir
 
     @staticmethod
     def read_tif(tif):
@@ -132,7 +172,8 @@ class Collection(object):
                   "circle_qual":circle_qual,
                   }
 
-        images_dict = {"tif_a": np.asarray(self.tifs_a[1]), "tif_b": np.asarray(self.tifs_b[1])}
+        images_dict = {"tif_a": np.asarray(self.tifs_a[-1]),
+                       "tif_b": np.asarray(self.tifs_b[-1])}
         image = images_dict.get(of)
         if of == "tif_a":
             image_b = images_dict["tif_b"]
@@ -192,21 +233,113 @@ class Collection(object):
         values = self.create_values(**kwargs)
         for key,value in values.items():
             spots[key] = value
-        im_b = np.asarray(self.tifs_b[1])
-        im_a = np.asarray(self.tifs_a[1])
+        im_b = np.asarray(self.tifs_b[-1])
+        im_a = np.asarray(self.tifs_a[-1])
 
         return Spots(df=spots, b_im=im_b, a_im =im_a)
 
+    def dump_pickel(self):
+        print("<{}> is beeing pickeled".format(self.name))
+        spots = self.pd_complete_spots()
+        with open(os.path.join(self.base_path,self.name, "spots_class.pickel"), 'wb') as f:
+                pickle.dump(spots,f)
+
+
     def create_grid(self,on="tiff_a"):
-        tiff_dict = {"tiff_a":self.tifs_a[1],"tiff_b":self.tifs_b[1]}
-        assert tiff_dict[on] is not None, " You have no image loaded"
-        root = tk.Toplevel()
+        tiff_dict = {"tiff_a":self.tifs_a[-1],"tiff_b":self.tifs_b[-1]}
+        assert tiff_dict[on] is not None, "You have no image loaded"
+        root = Tk.Toplevel()
         app = FindGrid(root,collection=self)
         root.mainloop()
         print(app.corners)
 
+    def export_measurement_folder(self,where):
+        print("Starting with Collection <{}>".format(self.name))
+        assert os.path.exists(where), "<{}> destination does not exist".format(where)
+        #creates all nessesary folders
+        collection_folder = os.path.join(where,self.name)
+        results_folder = os.path.join(collection_folder,"results")
+
+        raw_folder = os.path.join(results_folder,"raw/")
+        quant1_folder = os.path.join(results_folder,"quant1/")
+        before_folder = os.path.join(results_folder,"before/")
+
+        ensure_dir(raw_folder)
+        ensure_dir(quant1_folder)
+        ensure_dir(before_folder)
+
+        # main folder
+        pd.DataFrame.from_dict(data=self.collection_meta, orient='index').to_csv(os.path.join(collection_folder,"meta.tsv"), sep=str('\t'), header=False)
+
+        self.c_steps_pd().to_csv(os.path.join(collection_folder,"steps.tsv"), sep=str('\t'), encoding='utf-8')
+        self.gal.to_csv(os.path.join(collection_folder,"lig_fix.txt"), sep=str('\t'), index="True", encoding='utf-8')
+        self.gal_vir.to_csv(os.path.join(collection_folder,"lig_mob.txt"), sep=str('\t'), index="True", encoding='utf-8')
+
+        spots = Spots.load_pickel(self)
+
+        #Image.fromarray(spots.b_im).save(os.path.join(collection_folder,"b_im.tiff"),"TIFF")
+        #Image.fromarray(spots.a_im).save(os.path.join(collection_folder,"a_im.tiff"),"TIFF")
+        Image.fromarray(spots.b_im).point(lambda i:i*(1./256)).convert('L').save(os.path.join(collection_folder, "b_im.png"))
+        Image.fromarray(spots.a_im).point(lambda i:i*(1./256)).convert('L').save(os.path.join(collection_folder, "a_im.png"))
+
+        #except:
+        #    spots = self.pd_complete_spots()
+
+        #results before
+        pd.DataFrame.from_dict(data=self.before_meta, orient='index').to_csv(os.path.join(before_folder,"meta.tsv"), sep=str('\t'), header=False)
+        spots.before_intensies_pivot().to_csv(os.path.join(before_folder,"intensity.tsv"), sep=str('\t'))
+
+        # results raw
+        pd.DataFrame.from_dict(data=self.raw_meta, orient='index').to_csv(os.path.join(raw_folder,"meta.tsv"), sep=str('\t'), header=False)
+        spots.raw_intensies_pivot().to_csv(os.path.join(raw_folder,"intensity.tsv"), sep=str('\t'))
+
+        # results quant1
+        pd.DataFrame.from_dict(data=self.quant1_meta, orient='index').to_csv(os.path.join(quant1_folder,"meta.tsv"), sep=str('\t'), header=False)
+        spots.quant1_intensies_pivot().to_csv(os.path.join(quant1_folder,"intensity.tsv"), sep=str('\t'))
+        spots.circle_qual_intensies2_pivot().to_csv(os.path.join(quant1_folder,"circle_quality.tsv"), sep=str('\t'))
+        spots.std_intensies2_pivot().to_csv(os.path.join(quant1_folder,"std.tsv"), sep=str('\t'))
 
 
+    def r_meta_dict_raw(self):
+        d = {"comment":
+        "spotdetection with spot2intensity.py from {} .".format(datetime.date.today()),
+        "processing_type": "Fluorescence reader of microwell plate (sum over square on grid )",
+        "intensity_file": "intensity.tsv"}
+        return d
+
+    def r_meta_dict_quant1(self):
+        d = self.r_meta_dict_raw()
+        d["processing_type"] = "Fluorescence reader of microwell plate (mean on best fitfing circle of spot)"
+        d["circle_quality"] = "circle_quality.tsv"
+        d["std"] = "std.tsv"
+        return d
+
+    def r_meta_dict_before(self):
+        d = self.r_meta_dict_raw()
+        d["comment"] = "spotdetection with spot2intensity.py from {} after spotting.".format(datetime.date.today())
+        return d
+
+
+    def c_steps_pd(self):
+        d = [
+            ["S03", "0", "", "", "", "", ""],
+            ["SC001", "1", "", "", "", "b_im.png", ""],
+            ["W004", "2", "", "", "", "", ""],
+            ["I01", "3", "", "", "", "", ""],
+            ["W004", "4", "", "", "", "", ""],
+            ["SC001", "5", "", "", "", "a_im.png", ""],
+        ]
+
+        return pd.DataFrame(d, columns=["step", "index", "user", "start", "comment", "image", "intensities"])
+
+
+    @staticmethod
+    def c_meta_dict(func="3D-Epoxy",mt="microarray", ma = "PolyAn", com = ""):
+            meta_dict = {"functionalization":func,
+                         "measurement_type":mt,
+                         "manufacturer":ma,
+                         "comment":com}
+            return meta_dict
 
 
 
@@ -267,11 +400,6 @@ def rectangle_reshape(x_0, y_0, x_spacing, y_spacing):
 def find_circle_coordinates(image):
 
     pic = copy.deepcopy(image)
-
-
-    #pic[pic > 120] = 0
-    #pic[pic < 1] = 0
-    #edges = roberts(pic)
     edges = feature.canny(pic)
     # Detect two radii
     hough_radii = np.arange(10, 60, 2)

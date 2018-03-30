@@ -5,6 +5,7 @@ import pandas as pd
 import numpy as np
 from utils import row_to_block
 import copy
+import itertools
 
 
 import matplotlib.pyplot as plt
@@ -19,7 +20,7 @@ from sklearn.tree import DecisionTreeClassifier
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.naive_bayes import GaussianNB
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
-
+from sklearn.metrics import confusion_matrix
 #my webapp import
 sys.path.append('/home/janekg89/Develop/Pycharm_Projects/flutype_webapp')
 sys.path.append('/home/janekg89/Develop/Pycharm_Projects/flutype_analysis')
@@ -33,6 +34,7 @@ class Data(object):
         self.spots = spots
         self.data = []
         self.kwargs = kwargs
+        self.spots_pd = self._reformat(spots)
 
 
     @staticmethod
@@ -43,9 +45,12 @@ class Data(object):
                   'raw_spot__lig_mob_batch__sid',
                   'raw_spot__lig_mob_batch__ligand__sid',
                   'intensity',
+                  'std',
+                  'circle_quality',
                   'raw_spot__raw_spot_collection__sid',
                   'raw_spot__row',
                   'raw_spot__column',
+
                   ]
 
         renamed_columns = ['Ligand Batch',
@@ -54,6 +59,8 @@ class Data(object):
                            'Analyte Batch',
                            'Analyte',
                            'Intensity',
+                           'Std',
+                           'Circle Quality',
                            'Collection',
                            'Row',
                            'Column']
@@ -62,14 +69,15 @@ class Data(object):
         data_numpy = np.array(data)
         spots_pd = pd.DataFrame(data_numpy,columns=renamed_columns)
         spots_pd.replace([None],[np.NaN], inplace=True)
-        spots_pd["Block"] = [row_to_block(row) for row in  spots_pd["Row"]]
+        #spots_pd["Block"] = [row_to_block(row) for row in  spots_pd["Row"]]
+        #fixme add to database
+        spots_pd["Block"] = 1
         return spots_pd
 
     @staticmethod
     def _safe_random_permutation(data, with_in):
 
         indexes = ["Analyte Batch", "Collection", "Block"]
-
         if bool(with_in):
             indexes= indexes[:indexes.index(with_in) + 1]
 
@@ -79,7 +87,28 @@ class Data(object):
         for i in safe_set_indexes:
             true_index =[i.issubset(set(index)) for index in data.index.values]
             data.loc[data.iloc[true_index].index] = data.iloc[true_index].apply(np.random.permutation, axis=0)
-            #data.iloc[true_index].apply(np.random.permutation, axis=0)
+            #data.iloc[true_index].apply(np.random.permutation, axis=0
+
+
+
+    def generate_data_for_fitting(self,rpvb):
+        """
+
+        :param rpvb: replicates per virus batch
+        :return:
+        """
+        frames = []
+        for name, d in self.spots_pd.groupby(["Analyte Batch", "Ligand Batch"]):
+            d = d.dropna(subset=["Intensity"])
+            if len(d) == 0:
+                continue
+            this_d = d.sample(rpvb, replace=True)
+            this_d["Replica"] = range(rpvb)
+            frames.append(this_d)
+        return pd.concat(frames)
+
+
+
 
 
     @staticmethod
@@ -164,7 +193,7 @@ class Data(object):
     def _pivot_table(spots,mean_on=None):
 
 
-        indexes = ["Analyte Batch", "Collection", "Block", "Replica"]
+        indexes = ["Analyte Batch", "Replica"]
 
         if bool(mean_on):
                     indexes=indexes[:indexes.index(mean_on)+1]
@@ -210,13 +239,12 @@ class Data(object):
 
 class Analysis(object):
 
-    def __init__(self, data):
-        self.data = data
+    def __init__(self, data_train, data_validate):
         self.classifier_names = ["Nearest Neighbors",
                  "Decision Tree", "Random Forest", "AdaBoost",
                  "Naive Bayes", "LDA"]
-        self.train_data, self.validation_data = self.data.split_in_train_and_validation()
-
+        self.train_data = data_train
+        self.validation_data = data_validate
         self.y_train = pd.get_dummies(self.train_data.index.get_level_values("Analyte Batch"))
         self.y_validate = pd.get_dummies(self.validation_data.index.get_level_values("Analyte Batch"))
 
@@ -275,6 +303,7 @@ class Analysis(object):
         for multi_clf, name, i in zip(multi_clfs, self.classifier_names, range(len(self.classifier_names))):
 
                 TP, FP, TN, FN = self.perf_measure(self.y_validate, multi_clf.predict(self.validation_data))
+                #In multi-label classification, this is the subset accuracy which is a harsh metric since you require for each sample that each label set be correctly predicted.
                 unweighted_accuracy = 100 * multi_clf.score(self.validation_data, self.y_validate)
                 true_positive = 100 * np.divide(np.float64(TP) , np.float64(TP + FP))
                 false_positive = 100 * np.divide(np.float64(FP) , np.float64(TP + FP))
@@ -288,6 +317,50 @@ class Analysis(object):
                                        true_negative, \
                                        false_negative
         return perform_table
+
+    def conflux_matrixes(self):
+        multi_clfs = self.fit_classifiers()
+        conf_matrixes = {}
+        for multi_clf, name, i in zip(multi_clfs, self.classifier_names, range(len(self.classifier_names))):
+            conf_matrixes[name] =  confusion_matrix(self.y_validate.values.argmax(axis=1), multi_clf.predict(self.validation_data).argmax(axis=1))
+        return conf_matrixes
+
+
+
+    @staticmethod
+    def plot_confusion_matrix(cm, classes,
+                              normalize=True,
+                              title='Confusion matrix',
+                              cmap=plt.cm.Blues):
+        """
+        This function prints and plots the confusion matrix.
+        Normalization can be applied by setting `normalize=True`.
+        """
+        if normalize:
+            cm = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
+            print("Normalized confusion matrix")
+        else:
+            print('Confusion matrix, without normalization')
+
+        print(cm)
+
+        plt.imshow(cm, interpolation='nearest', cmap=cmap)
+        plt.title(title)
+        plt.colorbar()
+        tick_marks = np.arange(len(classes))
+        plt.xticks(tick_marks, classes, rotation=45)
+        plt.yticks(tick_marks, classes)
+
+        fmt = '.2f' if normalize else 'd'
+        thresh = cm.max() / 2.
+        for i, j in itertools.product(range(cm.shape[0]), range(cm.shape[1])):
+            plt.text(j, i, format(cm[i, j], fmt),
+                     horizontalalignment="center",
+                     color="white" if cm[i, j] > thresh else "black")
+
+        plt.tight_layout()
+        plt.ylabel('True label')
+        plt.xlabel('Predicted label')
 
 
 if __name__ == '__main__':
