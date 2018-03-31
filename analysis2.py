@@ -18,8 +18,8 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 from sklearn.metrics import confusion_matrix
 #my webapp import
-sys.path.append('/home/janekg89/Develop/Pycharm_Projects/flutype_webapp')
-sys.path.append('/home/janekg89/Develop/Pycharm_Projects/flutype_analysis')
+sys.path.append('/home/janek89/Dev/flutype_webapp')
+sys.path.append('/home/janek89/Dev/flutype_analysis')
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "flutype_webapp.settings")
 import django
 django.setup()

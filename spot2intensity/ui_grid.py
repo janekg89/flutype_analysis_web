@@ -51,7 +51,11 @@ class FindGrid(tk.Frame):
 
     @staticmethod
     def _reformat_image(collection):
-        im = collection.tifs_a[1]
+        try:
+            im = collection.tifs_a[1]
+        except:
+            im = collection.tifs_a[0]
+
         im_array = np.asarray(im)
         im_array = im_array * (255.0 / im_array.max())
         return ImageTk.PhotoImage(Image.fromarray(im_array))
