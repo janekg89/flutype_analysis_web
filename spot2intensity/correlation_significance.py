@@ -1,8 +1,8 @@
-from scipy.stats import multivariate_normal
+from scipy.stats import multivariate_normal, ttest_ind_from_stats
 import operator
 import numpy as np
 
-def correlated_significance(v1_i,v2_i, v1_var, v2_var, **kwargs):
+def correlated_significance(v1_i,v1_var, v2_var, **kwargs):
     """
     :param v1_i: mean of intensity of the first
     :param v2_i: mean of intensity of the second
@@ -10,7 +10,8 @@ def correlated_significance(v1_i,v2_i, v1_var, v2_var, **kwargs):
     :param v2_var: variance of the second
     :param where: function default: zip(i1,i2) ; i1= 12 = np.linspace(imin, imax,200)
     :return: (where on measured), signficance_value
-    """
+
+
     cov = [[v1_var, 0], [0, v2_var]]
     mean = [v1_i, v2_i]
 
@@ -20,15 +21,15 @@ def correlated_significance(v1_i,v2_i, v1_var, v2_var, **kwargs):
     distance = np.max([v1_i,v2_i]) - np.min([v1_i,v2_i])
 
     line = np.linspace(imin-distance, imax+distance, 500, endpoint=False)
-    where=kwargs.get("where",zip(line, line))
+    where=kwargs.get("where",list(zip(line, line)))
 
     if np.isnan(cov).any():
         return (np.nan,np.nan), np.nan
-
+    print(where)
     significance = multivariate_normal.pdf(where, mean=mean, cov=cov)
 
     #maxima
-    where_max, significance_max = max(zip(where,significance), key=operator.itemgetter(1))
+    where_max, significance_max = max(list(zip(where,significance)), key=operator.itemgetter(1))
 
 
 
@@ -38,6 +39,8 @@ def correlated_significance(v1_i,v2_i, v1_var, v2_var, **kwargs):
 
 
     return where_max, sig_int
+    """
+    return ttest_ind_from_stats(v1_i,np.sqrt(v1_var),v2_i, np.sqrt(v2_var),)
 
 
 

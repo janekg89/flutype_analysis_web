@@ -4,6 +4,7 @@ import statsmodels.api as sm
 from scipy.interpolate import interp1d
 from itertools import combinations
 from spot2intensity.correlation_significance import correlated_significance
+from scipy.stats import ttest_ind_from_stats
 
 
 def outliers_modified_z_score(ys):
@@ -52,6 +53,36 @@ def normalize(spots):
 
     return pd.concat(frames)
 
+def lowless_norm(spots, master_collection):
+    frames = []
+
+    c1n = spots[spots["Collection"] == master_collection]
+    c1n_lf = c1n[c1n["Ligand"] == "LF"]
+
+    for name, spots_collection in spots.groupby(["Collection"]):
+        if name == master_collection:
+            continue
+        sp_coll_lf = spots_collection[spots_collection["Ligand"] == "LF"]
+        c2n_lf = sp_coll_lf.set_index(["Ligand Batch"])
+        c2n = spots_collection.set_index(["Ligand Batch"])
+
+        x1_lf = np.log10(c1n_lf["Intensity"] * c2n_lf["Intensity"])
+        x1 = np.log10(c1n["Intensity"] * c2n["Intensity"])
+        y1_lf = np.log2(c1n_lf["Intensity"] / c2n_lf["Intensity"])
+        lowess = sm.nonparametric.lowess(y1_lf, x1_lf, frac=0.33)
+        f = interp1d(lowess[:, 0], lowess[:, 1], bounds_error=False)
+        #hier comes the normlization
+        x_mean = x1.reset_index().groupby("Ligand Batch").agg(["mean", "std"])
+        x_mean = x_mean.reset_index().rename(columns={"Intensity": "x_norm"})
+        # x_norm is for normalization and is not used after normalization
+        data = pd.merge(spots_collection, x_mean, how='left', left_on='Ligand Batch', right_on='Ligand Batch')
+        data["Intensity"] = data["Intensity"] * (2 ** (f(data[("x_norm", "mean")])))
+        frames.append(data)
+    return pd.concat(frames)
+
+
+
+
 
 def mean_on_analyte_batch(spots):
     frames = []
@@ -92,7 +123,8 @@ def ligand_batch_significance(spots):
             v1_count = spots1_this_lb["Count"].iloc[0]
             v2_count = spots2_this_lb["Count"].iloc[0]
 
-            where_max, sig_max = correlated_significance(v1_i, v2_i, v1_var, v2_var)
+            #where_max, sig_max = correlated_significance(v1_i, v2_i,num1, v1_var, v2_var,num2)
+            _, sig_max = ttest_ind_from_stats(v1_i,v1_err,v1_count,v2_i,v2_err,v2_count)
 
             fr = pd.Series(
                 [ligand_batch, (name1, name2), sig_max, v1_i, v2_i, v1_err, v2_err,v1_count,v2_count],

@@ -63,7 +63,6 @@ class Spots(object):
         return spots
 
 
-
     def select_by_circlequal(self,low_tresh,inplace=True):
         selected = self.df.loc[self.df["circle_qual"] > low_tresh * self.df["circle_qual"].max()]
         if not inplace:
@@ -382,8 +381,8 @@ def create_circle_patches(center, radius):
         xy=center,
         radius=radius,
         fill=False,  # remove background
-        linewidth=1,
-        edgecolor='b',
+        linewidth=2,
+        edgecolor='r',
     )
 
     return rec

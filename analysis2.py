@@ -107,6 +107,8 @@ class Data(object):
     def subset_collection(self, collections):
         return self._generic_subset(collections,"Collection")
 
+    def subset_ligand(self,ligand):
+        return self._generic_subset(ligand,"Ligand")
 
     def subset_ligand_batches(self,ligand_batches):
         return self._generic_subset(ligand_batches,"Ligand Batch")
@@ -182,6 +184,8 @@ class Data(object):
 
     def impute(self):
         pass
+
+
 
     @staticmethod
     def _pivot_table(spots_pd):

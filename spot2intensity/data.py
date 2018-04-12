@@ -1,10 +1,10 @@
 import copy
-from spot2intensity import Point,Rectangle, Grid, Collection
-
+from .model import Point,Rectangle, Grid
+from .spot2intensity import Collection
 
 STUDY = "2018-01-24_microarray"
 MEASUREMENTS = ["180124_N21_Pan", "180124_E14_X31", "180124_N22_Cal", "180124_N23_X31", "180124_E15_X31"]
-DIRECTORY = ["data/{}/{}".format(STUDY,measurement) for measurement in MEASUREMENTS]
+DIRECTORY = ["../data/{}/{}".format(STUDY,measurement) for measurement in MEASUREMENTS]
 IMAGE_PATHS = ["180124_N21_Pan.gif",
                 '180124_E14_X31_Allantois_100_600_635_635_2_635.gif',
                 '180124_N22_Cal_100_600_635_635_635.gif',
@@ -42,6 +42,7 @@ rec_E14_3 = Rectangle(Point(302, 5164),
                      )
 recs = [rec_E14_1,rec_E14_2,rec_E14_3]
 grids = [Grid(rectangle = rec, shape = copy.deepcopy(BLOCK_SHAPE)) for rec in recs]
+
 
 COLLECTIONS["180124_E14_X31"]= Collection(grids=grids,
                                           name="180124_E14_X31",
