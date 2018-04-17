@@ -8,6 +8,7 @@ import copy
 from utils import checkEqual
 from preprocessing import outlier_filtering, normalize_on_ligand_batch, mean_on_analyte_batch,ligand_batch_significance
 from sklearn.decomposition import PCA
+
 #import libraries for different classifiers
 from sklearn.multioutput import MultiOutputClassifier
 from sklearn.ensemble import RandomForestClassifier, AdaBoostClassifier
@@ -17,6 +18,8 @@ from sklearn.naive_bayes import GaussianNB
 from sklearn.linear_model import LogisticRegression
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 from sklearn.metrics import confusion_matrix
+from sklearn.preprocessing import Imputer
+
 #my webapp import
 sys.path.append('/home/janek89/Dev/flutype_webapp')
 sys.path.append('/home/janek89/Dev/flutype_analysis')
@@ -25,15 +28,23 @@ import django
 django.setup()
 
 class Data(object):
-    def __init__(self, spots_dj = None, spots_pd = None):
+    def __init__(self, spots_dj = None, test=False,impute=False,spots_pd = None):
         if spots_dj is not None:
             self.spots_pd = self._reformat(spots_dj)
         else:
             assert spots_pd is not None, "Provide spots_pd or spots_dj."
             self.spots_pd = spots_pd
+        self.train_test_combinations = None
+        if test:
+            self.train_test_combinations = self.combination_split_train_test()
+        if impute:
+            self.x = self._pivot_table(self.spots_pd)
+        else:
+            x = self._pivot_table(self.spots_pd)
+            imputer = Imputer()
+            imputed_x = imputer.fit_transform(x)
+            self.x = pd.DataFrame(imputed_x, index=x.index, columns=x.columns)
 
-        self.train_test_combinations = self.combination_split_train_test()
-        self.x = self._pivot_table(self.spots_pd)
         self.y_names = self.x.index.get_level_values("Analyte Batch").values
         self.y = self.y()
         self.collections = self.x.index.get_level_values("Collection")
@@ -54,8 +65,10 @@ class Data(object):
                   'std',
                   'circle_quality',
                   'raw_spot__raw_spot_collection__sid',
-                  'raw_spot__row',
+                  'raw_spot__raw_spot_collection__studies__sid',
+                   'raw_spot__row',
                   'raw_spot__column',
+
 
                   ]
 
@@ -68,6 +81,7 @@ class Data(object):
                            'Std',
                            'Circle Quality',
                            'Collection',
+                           'Study',
                            'Row',
                            'Column']
 
@@ -183,6 +197,11 @@ class Data(object):
         return set(self.x.columns)-set(self.spare_ligand_batches())
 
     def impute(self):
+        imputer = Imputer()
+        imputer.fit_transform(self.x)
+
+        #return Data(spots_pd=normalize_on_ligand_batch(self.spots_pd,ligand_batch=by))
+
         pass
 
 

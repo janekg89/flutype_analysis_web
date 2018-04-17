@@ -98,6 +98,19 @@ def mean_on_analyte_batch(spots):
     mean_spots = pd.concat(frames, axis=1)
     return mean_spots.transpose().reset_index().rename(columns={"level_0":"Ligand Batch","level_1":"Analyte Batch"})
 
+def mean_on_collection(spots):
+    frames = []
+    for name, data in spots.groupby(["Ligand Batch", "Collection","Study"]):
+
+        x = data.mean()
+        x["Count"] = len(data)
+        x["Intensity_std"] = data["Intensity"].std(ddof=1) / np.sqrt(len(data))
+        x["Intensity_var"] = data["Intensity"].var()
+        x["Intensity_rsd"] = data["Intensity"].std() / data["Intensity"].mean()
+        x.name = name
+        frames.append(x)
+    mean_spots = pd.concat(frames, axis=1)
+    return mean_spots.transpose().reset_index().rename(columns={"level_0":"Ligand Batch","level_1":"Collection","level_2":"Study"})
 
 def ligand_batch_significance(spots):
     spots_grouped = combinations(spots.groupby("Analyte Batch"), 2)
