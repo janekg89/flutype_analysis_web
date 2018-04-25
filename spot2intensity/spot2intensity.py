@@ -11,13 +11,14 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 
 from skimage.transform import hough_circle, hough_circle_peaks
-from skimage import feature
+from skimage import feature, exposure, filters
 import skimage.io
 from PIL import Image, ImageSequence
 
 from .ui_grid import FindGrid
 from .model import Point, Rectangle, Grid
 from utils import ensure_dir
+
 
 try:
     from six.moves import tkinter as Tk
@@ -41,7 +42,7 @@ class Spots(object):
         else:
             ax = kwargs.get("ax")
 
-        ax.imshow(np.asarray(image), cmap="gray")
+        ax.imshow(exposure.equalize_hist(np.asarray(image)), cmap="gray")
         for i, spot in self.df.iterrows():
             circ = create_circle_patches(spot["circles"].center, spot["circles"].radius)
             rec = patches.Rectangle((spot["squares"].get_xy()),
@@ -125,6 +126,13 @@ class Collection(object):
         gal_vir["Name"] = self.virus
         return gal_vir
 
+    def resize_tif_b(self):
+        #im = Image.fromarray(np.asarray(self.tifs_b[-1]).astype(np.uint8))
+        #im_thumb = im.thumbnail(self.tifs_a[-1].size, Image.ANTIALIAS)
+        #output = self.base_path+"tif_b_new.tif"
+        #im.save(output)
+        return "hi"
+
     @staticmethod
     def read_tif(tif):
         """
@@ -179,17 +187,19 @@ class Collection(object):
         elif of == "tif_b":
             image_b = images_dict["tif_a"]
 
+        equilized_image = exposure.equalize_hist(image)
+
         print(self.grids)
         for grid in self.grids:
             print("Claculating grid starting at:{}".format(grid))
 
             #grid.add_row(where="top")
             #grid.add_row(where="bottom")
-
+            delta_x = int(grid.abs_horizontal_spacing)
+            delta_y = int(grid.abs_vertical_spacing)
 
             for x, y in grid.points:
-                delta_x = int(grid.abs_horizontal_spacing)
-                delta_y = int(grid.abs_vertical_spacing)
+
                 x = int(x)
                 y = int(y)
                 rec = create_patches((x, y), delta_x, delta_y)
@@ -204,20 +214,23 @@ class Collection(object):
                     y0 = 0
 
                 spot_imag = image[y0:y0 + delta_x, x0:x0 + delta_y]
+                spot_imag_eq = equilized_image[y0:y0 + delta_x, x0:x0 + delta_y]
+
+
                 spot_imag_b = image_b[y0:y0 + delta_x, x0:x0 + delta_y]
 
                 spot_images.append(spot_imag)
                 intensities.append(spot_imag.sum())
 
-                circx, circy, radius, accums = find_circle_coordinates(spot_imag)
+                circy, circx, radius, accums = find_circle_coordinates(spot_imag_eq)
                 circle_qual.append(accums)
-                circ = create_circle_patches((circy + x0, circx + y0), radius)
+                circ = create_circle_patches((circx + x0, circy + y0), radius)
                 circles.append(circ)
 
                 circ_points = np.array([value for (y, x), value in np.ndenumerate(spot_imag) if
-                                        contained_in_circle(circx, x, circy, y, radius)])
+                                        contained_in_circle(circy, x, circx, y, radius)])
                 circ_points_b = np.array([value for (y, x), value in np.ndenumerate(spot_imag_b) if
-                                        contained_in_circle(circx, x, circy, y, radius)])
+                                        contained_in_circle(circy, x, circx, y, radius)])
 
                 std_intensities2.append(circ_points.std())
                 intensities2.append(circ_points.mean())
@@ -399,10 +412,12 @@ def rectangle_reshape(x_0, y_0, x_spacing, y_spacing):
 def find_circle_coordinates(image):
 
     pic = copy.deepcopy(image)
-    edges = feature.canny(pic)
+    #img_seg_eq = segmentation.felzenszwalb(pic, scale=0.1, sigma=1, min_size=100)
+    edges = feature.canny(filters.gaussian(pic, sigma=4))
+    #edges = feature.canny(pic)
     # Detect two radii
-    hough_radii = np.arange(10, 60, 2)
-    hough_res = hough_circle(edges, hough_radii)
+    hough_radii = np.arange(6, 40, 2)
+    hough_res = hough_circle(edges[5:-5,5:-5], hough_radii,full_output=False)
     # Select the most prominent  circle:
     accums, cx, cy, radii = hough_circle_peaks(hough_res, hough_radii, min_xdistance=hough_radii.min(),
                                                min_ydistance=hough_radii.min(),

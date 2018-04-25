@@ -100,7 +100,7 @@ def mean_on_analyte_batch(spots):
 
 def mean_on_collection(spots):
     frames = []
-    for name, data in spots.groupby(["Ligand Batch", "Collection","Study"]):
+    for name, data in spots.groupby(["Ligand Batch", "Collection","Study","Analyte Batch"]):
 
         x = data.mean()
         x["Count"] = len(data)
@@ -110,7 +110,7 @@ def mean_on_collection(spots):
         x.name = name
         frames.append(x)
     mean_spots = pd.concat(frames, axis=1)
-    return mean_spots.transpose().reset_index().rename(columns={"level_0":"Ligand Batch","level_1":"Collection","level_2":"Study"})
+    return mean_spots.transpose().reset_index().rename(columns={"level_0":"Ligand Batch","level_1":"Collection","level_2":"Study","level_3":"Analyte Batch"})
 
 def ligand_batch_significance(spots):
     spots_grouped = combinations(spots.groupby("Analyte Batch"), 2)

@@ -1,6 +1,15 @@
+
+
 from __future__ import absolute_import, print_function, unicode_literals
 import sys
 import os
+
+#my webapp import
+sys.path.append('/home/janekg89/Develop/Pycharm_Projects/flutype_webapp')
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "flutype_webapp.settings")
+import django
+django.setup()
+
 import pandas as pd
 import numpy as np
 import itertools
@@ -8,24 +17,11 @@ import copy
 from utils import checkEqual
 from preprocessing import outlier_filtering, normalize_on_ligand_batch, mean_on_analyte_batch,ligand_batch_significance
 from sklearn.decomposition import PCA
-
-#import libraries for different classifiers
-from sklearn.multioutput import MultiOutputClassifier
-from sklearn.ensemble import RandomForestClassifier, AdaBoostClassifier
-from sklearn.tree import DecisionTreeClassifier
-from sklearn.neighbors import KNeighborsClassifier
-from sklearn.naive_bayes import GaussianNB
 from sklearn.linear_model import LogisticRegression
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 from sklearn.metrics import confusion_matrix
 from sklearn.preprocessing import Imputer
 
-#my webapp import
-sys.path.append('/home/janek89/Dev/flutype_webapp')
-sys.path.append('/home/janek89/Dev/flutype_analysis')
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "flutype_webapp.settings")
-import django
-django.setup()
 
 class Data(object):
     def __init__(self, spots_dj = None, test=False,impute=False,spots_pd = None):
@@ -68,6 +64,7 @@ class Data(object):
                   'raw_spot__raw_spot_collection__studies__sid',
                    'raw_spot__row',
                   'raw_spot__column',
+                   'spot_collection__sid'
 
 
                   ]
@@ -83,7 +80,8 @@ class Data(object):
                            'Collection',
                            'Study',
                            'Row',
-                           'Column']
+                           'Column',
+                           'Collection Type']
 
         data = spots.values_list(*columns)
         #renaming columns
