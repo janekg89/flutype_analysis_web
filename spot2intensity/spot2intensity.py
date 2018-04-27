@@ -179,6 +179,7 @@ class Collection(object):
                   "circle_qual":circle_qual,
                   }
 
+
         images_dict = {"tif_a": np.asarray(self.tifs_a[-1]),
                        "tif_b": np.asarray(self.tifs_b[-1])}
         image = images_dict.get(of)
@@ -186,6 +187,10 @@ class Collection(object):
             image_b = images_dict["tif_b"]
         elif of == "tif_b":
             image_b = images_dict["tif_a"]
+
+        if image_b == None:
+            del values["intensities2_b"]
+
 
         equilized_image = exposure.equalize_hist(image)
 
@@ -215,10 +220,6 @@ class Collection(object):
 
                 spot_imag = image[y0:y0 + delta_x, x0:x0 + delta_y]
                 spot_imag_eq = equilized_image[y0:y0 + delta_x, x0:x0 + delta_y]
-
-
-                spot_imag_b = image_b[y0:y0 + delta_x, x0:x0 + delta_y]
-
                 spot_images.append(spot_imag)
                 intensities.append(spot_imag.sum())
 
@@ -227,14 +228,18 @@ class Collection(object):
                 circ = create_circle_patches((circx + x0, circy + y0), radius)
                 circles.append(circ)
 
+                if not image_b == None:
+                    spot_imag_b = image_b[y0:y0 + delta_x, x0:x0 + delta_y]
+                    circ_points_b = np.array([value for (y, x), value in np.ndenumerate(spot_imag_b) if
+                                        contained_in_circle(circy, x, circx, y, radius)])
+                    intensities2_b.append(circ_points_b.mean())
+
+
+
                 circ_points = np.array([value for (y, x), value in np.ndenumerate(spot_imag) if
                                         contained_in_circle(circy, x, circx, y, radius)])
-                circ_points_b = np.array([value for (y, x), value in np.ndenumerate(spot_imag_b) if
-                                        contained_in_circle(circy, x, circx, y, radius)])
-
                 std_intensities2.append(circ_points.std())
                 intensities2.append(circ_points.mean())
-                intensities2_b.append(circ_points_b.mean())
 
 
         return values
@@ -245,7 +250,10 @@ class Collection(object):
         values = self.create_values(**kwargs)
         for key,value in values.items():
             spots[key] = value
-        im_b = np.asarray(self.tifs_b[-1])
+        try:
+            im_b = np.asarray(self.tifs_b[-1])
+        except:
+            im_b = None
         im_a = np.asarray(self.tifs_a[-1])
 
         return Spots(df=spots, b_im=im_b, a_im =im_a)
@@ -274,11 +282,9 @@ class Collection(object):
 
         raw_folder = os.path.join(results_folder,"raw/")
         quant1_folder = os.path.join(results_folder,"quant1/")
-        before_folder = os.path.join(results_folder,"before/")
-
         ensure_dir(raw_folder)
         ensure_dir(quant1_folder)
-        ensure_dir(before_folder)
+
 
         # main folder
         pd.DataFrame.from_dict(data=self.collection_meta, orient='index').to_csv(os.path.join(collection_folder,"meta.tsv"), sep=str('\t'), header=False)
@@ -289,17 +295,20 @@ class Collection(object):
 
         spots = Spots.load_pickel(self)
 
+        if not self.tifs_b[-1] == None:
+            before_folder = os.path.join(results_folder, "before/")
+            ensure_dir(before_folder)
+            Image.fromarray(spots.b_im).point(lambda i: i * (1. / 256)).convert('L').save(
+                os.path.join(collection_folder, "b_im.png"))
+            # results before
+            pd.DataFrame.from_dict(data=self.before_meta, orient='index').to_csv(
+                os.path.join(before_folder, "meta.tsv"), sep=str('\t'), header=False)
+            spots.before_intensies_pivot().to_csv(os.path.join(before_folder, "intensity.tsv"), sep=str('\t'))
+
+
         #Image.fromarray(spots.b_im).save(os.path.join(collection_folder,"b_im.tiff"),"TIFF")
         #Image.fromarray(spots.a_im).save(os.path.join(collection_folder,"a_im.tiff"),"TIFF")
-        Image.fromarray(spots.b_im).point(lambda i:i*(1./256)).convert('L').save(os.path.join(collection_folder, "b_im.png"))
         Image.fromarray(spots.a_im).point(lambda i:i*(1./256)).convert('L').save(os.path.join(collection_folder, "a_im.png"))
-
-        #except:
-        #    spots = self.pd_complete_spots()
-
-        #results before
-        pd.DataFrame.from_dict(data=self.before_meta, orient='index').to_csv(os.path.join(before_folder,"meta.tsv"), sep=str('\t'), header=False)
-        spots.before_intensies_pivot().to_csv(os.path.join(before_folder,"intensity.tsv"), sep=str('\t'))
 
         # results raw
         pd.DataFrame.from_dict(data=self.raw_meta, orient='index').to_csv(os.path.join(raw_folder,"meta.tsv"), sep=str('\t'), header=False)
