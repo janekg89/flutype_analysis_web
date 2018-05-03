@@ -18,6 +18,9 @@ from utils import checkEqual
 from preprocessing import outlier_filtering, normalize_on_ligand_batch, mean_on_analyte_batch,ligand_batch_significance
 from sklearn.decomposition import PCA
 from sklearn.linear_model import LogisticRegression
+from sklearn.neighbors import  KNeighborsClassifier
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.ensemble import AdaBoostClassifier
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 from sklearn.metrics import confusion_matrix
 from sklearn.preprocessing import Imputer
@@ -223,24 +226,24 @@ class Analysis(object):
         self.train_test = kwargs.get('train_test', data.train_test_combinations)
         self.data = data
 
-        self.classifier_names = [#"Nearest Neighbors",
-                                 #"Decision Tree",
+        self.classifier_names = ["Nearest Neighbors",
+                                 "Decision Tree",
                                  # "Random Forest",
-                                 # "AdaBoost",
+                                  "AdaBoost",
                                  #"Gaussian NB",
                                  #"LDA",
-                                "LogisticRegression",
+                                #"LogisticRegression",
                                  ]
 
         self.classifiers = [
-            #KNeighborsClassifier(3),  # three nearest neighbors
-            #DecisionTreeClassifier(random_state=1),
+            KNeighborsClassifier(5),  # three nearest neighbors
+            DecisionTreeClassifier(random_state=1),
             #RandomForestClassifier(n_estimators=np.shape(self.train_data)[1], random_state=1),
-            #AdaBoostClassifier(),
+            AdaBoostClassifier(),
             #GaussianNB(),
             #GaussianNB(),
             #LinearDiscriminantAnalysis(n_components=5),
-            LogisticRegression(multi_class ="multinomial",solver='lbfgs'),
+            #LogisticRegression(multi_class ="multinomial",solver='lbfgs'),
         ]
 
 
