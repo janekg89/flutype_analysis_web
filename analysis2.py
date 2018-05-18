@@ -15,7 +15,7 @@ import numpy as np
 import itertools
 import copy
 from utils import checkEqual
-from preprocessing import outlier_filtering, normalize_on_ligand_batch, mean_on_analyte_batch,ligand_batch_significance
+from preprocessing import outlier_filtering, normalize_on_ligand_batch, mean_on_analyte_batch,mean_on_collection,ligand_batch_significance
 from sklearn.decomposition import PCA
 from sklearn.linear_model import LogisticRegression
 from sklearn.neighbors import  KNeighborsClassifier
@@ -59,15 +59,16 @@ class Data(object):
                   'raw_spot__lig_fix_batch__concentration',
                   'raw_spot__lig_fix_batch__ligand__sid',
                   'raw_spot__lig_mob_batch__sid',
+                  'raw_spot__lig_mob_batch__concentration',
                   'raw_spot__lig_mob_batch__ligand__sid',
                   'intensity',
                   'std',
                   'circle_quality',
                   'raw_spot__raw_spot_collection__sid',
                   'raw_spot__raw_spot_collection__studies__sid',
-                   'raw_spot__row',
+                  'raw_spot__row',
                   'raw_spot__column',
-                   'spot_collection__sid'
+                  'spot_collection__sid'
 
 
                   ]
@@ -76,6 +77,7 @@ class Data(object):
                            'Ligand Batch Concentration',
                            'Ligand',
                            'Analyte Batch',
+                           'Analyte Batch Concentraion',
                            'Analyte',
                            'Intensity',
                            'Std',
@@ -103,11 +105,9 @@ class Data(object):
 
     def x_lda_fit(self):
         n_components = 3
-        clf = LinearDiscriminantAnalysis(n_components=n_components)
-        return clf.fit(self.x, self.y.values.argmax(axis=1))
-
-
-
+        clf = LinearDiscriminantAnalysis(n_components=n_components,store_covariance=True)
+        #return clf.fit(self.x, self.y.values.argmax(axis=1))
+        return clf.fit(self.x, self.y_names)
 
 
     @staticmethod
@@ -117,7 +117,9 @@ class Data(object):
 
     @staticmethod
     def add_replica(spots_pd):
-        return spots_pd.groupby(["Collection", "Ligand Batch"]).apply(Data.replica)
+        spots_pd["Ligand Batch"] = spots_pd["Ligand Batch"].fillna("Empty")
+        return spots_pd.groupby(["Analyte Batch", "Ligand Batch"]).apply(Data.replica)
+
 
     def subset_collection(self, collections):
         return self._generic_subset(collections,"Collection")
@@ -154,6 +156,9 @@ class Data(object):
 
     def mean_on_analyte_batch(self):
         return mean_on_analyte_batch(self.spots_pd)
+
+    def mean_on_collection(self):
+        return mean_on_collection(self.spots_pd)
 
     def ligand_batch_significance(self):
         return ligand_batch_significance(self.mean_on_analyte_batch())
@@ -228,22 +233,22 @@ class Analysis(object):
 
         self.classifier_names = ["Nearest Neighbors",
                                  "Decision Tree",
-                                 # "Random Forest",
-                                  "AdaBoost",
+                                 #"Random Forest",
+                                  #"AdaBoost",
                                  #"Gaussian NB",
                                  #"LDA",
-                                #"LogisticRegression",
+                                "LogisticRegression",
                                  ]
 
         self.classifiers = [
             KNeighborsClassifier(5),  # three nearest neighbors
             DecisionTreeClassifier(random_state=1),
             #RandomForestClassifier(n_estimators=np.shape(self.train_data)[1], random_state=1),
-            AdaBoostClassifier(),
+            #AdaBoostClassifier(),
             #GaussianNB(),
             #GaussianNB(),
             #LinearDiscriminantAnalysis(n_components=5),
-            #LogisticRegression(multi_class ="multinomial",solver='lbfgs'),
+            LogisticRegression(multi_class ="multinomial",solver='lbfgs'),
         ]
 
 

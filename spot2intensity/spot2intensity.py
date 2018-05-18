@@ -43,6 +43,8 @@ class Spots(object):
             ax = kwargs.get("ax")
 
         ax.imshow(exposure.equalize_hist(np.asarray(image)), cmap="gray")
+        #ax.imshow(np.asarray(image), cmap="gray")
+
         for i, spot in self.df.iterrows():
             circ = create_circle_patches(spot["circles"].center, spot["circles"].radius)
             rec = patches.Rectangle((spot["squares"].get_xy()),
