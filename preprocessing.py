@@ -22,6 +22,7 @@ def outlier_filtering(spots, on= "Analyte Batch"):
         frames.append(data.drop(data.index[out]))
     return pd.concat(frames)
 
+
 def normalize_on_ligand_batch(spots, ligand_batch = "Nenad"):
     frames = []
     for name, data in spots.groupby(["Collection"]):
@@ -29,6 +30,7 @@ def normalize_on_ligand_batch(spots, ligand_batch = "Nenad"):
         data["Intensity"] = data["Intensity"] / lg_int
         frames.append(data)
     return pd.concat(frames)
+
 
 def normalize(spots):
     first_name = 0
@@ -50,8 +52,8 @@ def normalize(spots):
         data = pd.merge(data, x_mean, how='left', left_on='Ligand Batch', right_on='Ligand Batch')
         data["Intensity"] = data["Intensity"] * (2 ** (f(data[("x_norm", "mean")])))
         frames.append(data)
-
     return pd.concat(frames)
+
 
 def lowless_norm(spots, master_collection):
     frames = []
@@ -80,10 +82,6 @@ def lowless_norm(spots, master_collection):
         frames.append(data)
     return pd.concat(frames)
 
-
-
-
-
 def mean_on_analyte_batch(spots):
     frames = []
     for name, data in spots.groupby(["Ligand Batch", "Analyte Batch"]):
@@ -98,6 +96,7 @@ def mean_on_analyte_batch(spots):
     mean_spots = pd.concat(frames, axis=1)
     return mean_spots.transpose().reset_index().rename(columns={"level_0":"Ligand Batch","level_1":"Analyte Batch"})
 
+
 def mean_on_collection(spots):
     frames = []
     for name, data in spots.groupby(["Ligand Batch", "Collection","Study","Analyte Batch"]):
@@ -111,6 +110,19 @@ def mean_on_collection(spots):
         frames.append(x)
     mean_spots = pd.concat(frames, axis=1)
     return mean_spots.transpose().reset_index().rename(columns={"level_0":"Ligand Batch","level_1":"Collection","level_2":"Study","level_3":"Analyte Batch"})
+
+
+def mean_on_ligand_batch(spots):
+    frames = {}
+    for cn, d in spots.groupby(["Collection", "Ligand Batch"]):
+        x = d.mean()
+        x["Count"] = len(d)
+        x["Intensity_std"] = d["Intensity"].std(ddof=1) / np.sqrt(len(d))
+        x["Intensity_var"] = d["Intensity"].var()
+        x["Intensity_rsd"] = d["Intensity"].std() / d["Intensity"].mean()
+        frames[cn] = x
+    return  pd.concat(frames, axis=1).transpose().reset_index().rename(columns={"level_1":"Ligand Batch","level_0":"Collection"})
+
 
 def ligand_batch_significance(spots):
     spots_grouped = combinations(spots.groupby("Analyte Batch"), 2)

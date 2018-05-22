@@ -15,7 +15,7 @@ import numpy as np
 import itertools
 import copy
 from utils import checkEqual
-from preprocessing import outlier_filtering, normalize_on_ligand_batch, mean_on_analyte_batch,mean_on_collection,ligand_batch_significance
+from preprocessing import outlier_filtering, normalize_on_ligand_batch, mean_on_analyte_batch,mean_on_collection,ligand_batch_significance, mean_on_ligand_batch
 from sklearn.decomposition import PCA
 from sklearn.linear_model import LogisticRegression
 from sklearn.neighbors import  KNeighborsClassifier
@@ -36,14 +36,14 @@ class Data(object):
         self.train_test_combinations = None
         if test:
             self.train_test_combinations = self.combination_split_train_test()
-        if impute:
+        if not impute:
             self.x = self._pivot_table(self.spots_pd)
         else:
             x = self._pivot_table(self.spots_pd)
             imputer = Imputer()
             imputed_x = imputer.fit_transform(x)
             self.x = pd.DataFrame(imputed_x, index=x.index, columns=x.columns)
-
+        self.impute=impute
         self.y_names = self.x.index.get_level_values("Analyte Batch").values
         self.y = self.y()
         self.collections = self.x.index.get_level_values("Collection")
@@ -131,7 +131,7 @@ class Data(object):
         return self._generic_subset(ligand_batches,"Ligand Batch")
 
     def _generic_subset(self,generic_list, on):
-        return self.__class__(spots_pd=self.spots_pd[self.spots_pd.applymap(lambda x: x in list(generic_list))[on]])
+        return self.__class__(spots_pd=self.spots_pd[self.spots_pd.applymap(lambda x: x in list(generic_list))[on]],impute=self.impute)
 
     def collection_in_virbatch(self):
         dict_col_vir_batch = {}
@@ -149,16 +149,19 @@ class Data(object):
         return comb
 
     def norm(self, by="Nenad"):
-        return Data(spots_pd=normalize_on_ligand_batch(self.spots_pd,ligand_batch=by))
+        return Data(spots_pd=normalize_on_ligand_batch(self.spots_pd,ligand_batch=by),impute = self.impute)
 
     def outlier_filtering(self):
-        return Data(spots_pd= outlier_filtering(self.spots_pd,on="Collection"))
+        return Data(spots_pd= outlier_filtering(self.spots_pd,on="Collection"),impute=self.impute)
 
     def mean_on_analyte_batch(self):
         return mean_on_analyte_batch(self.spots_pd)
 
     def mean_on_collection(self):
         return mean_on_collection(self.spots_pd)
+
+    def mean_on_collection_by_lig_batch(self):
+        return mean_on_ligand_batch(self.spots_pd)
 
     def ligand_batch_significance(self):
         return ligand_batch_significance(self.mean_on_analyte_batch())
@@ -184,7 +187,7 @@ class Data(object):
             this_d = d.sample(sample_size, replace=True)
             this_d["Replica"] = range(sample_size)
             frames.append(this_d)
-        return self.__class__(spots_pd=pd.concat(frames))
+        return self.__class__(spots_pd=pd.concat(frames),impute = self.impute)
 
 
     def clean(self):
