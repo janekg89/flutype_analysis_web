@@ -43,6 +43,13 @@ This applies all migrations and writes the database content.
 ```
 
 Create repository
+```
 git clone https://github.com/janekg89/flutype_webapp_analysis.git
 mkvirtualenv flutype_webapp_analysis
 (flutype_webapp_analysis) pip install -r requirements.txt
+```
+change path to flutype_webapp in ```./analysis2.py```
+
+```
+sys.path.append('/home/janekg89/Develop/Pycharm_Projects/flutype_webapp')
+```
