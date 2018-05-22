@@ -5,7 +5,11 @@ import sys
 import os
 
 #my webapp import
-sys.path.append('/home/janekg89/Develop/Pycharm_Projects/flutype_webapp')
+
+# FLUTYPE_WEB_PATH = '/home/janekg89/Develop/Pycharm_Projects/flutype_webapp'
+FLUTYPE_WEB_PATH = '/home/mkoenig/git/flutype_webapp'
+
+sys.path.append(FLUTYPE_WEB_PATH)
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "flutype_webapp.settings")
 import django
 django.setup()
@@ -27,7 +31,9 @@ from sklearn.preprocessing import Imputer
 
 
 class Data(object):
-    def __init__(self, spots_dj = None, test=False,impute=False,spots_pd = None):
+    """ Main class providing data structures and helpers for analysis. """
+
+    def __init__(self, spots_dj=None, test=False, impute=False, spots_pd=None):
         if spots_dj is not None:
             self.spots_pd = self._reformat(spots_dj)
         else:
@@ -50,8 +56,6 @@ class Data(object):
         self.y_map = {i :x for i,x in enumerate(self.y.columns.tolist())}
         self.col_y_mapping = dict(zip(self.x.index.get_level_values("Collection").values,self.y_names))
 
-
-
     @staticmethod
     def _reformat(spots):
 
@@ -69,8 +73,6 @@ class Data(object):
                   'raw_spot__row',
                   'raw_spot__column',
                   'spot_collection__sid'
-
-
                   ]
 
         renamed_columns = ['Ligand Batch',
@@ -166,17 +168,11 @@ class Data(object):
     def ligand_batch_significance(self):
         return ligand_batch_significance(self.mean_on_analyte_batch())
 
-
-
-
-
     def y(self):
         return pd.get_dummies(self.y_names)
 
-
     def sample_on_analyte_batch(self,sample_size):
         return self._generic_sample("Analyte Batch",sample_size)
-
 
     def sample_on_collection(self, sample_size):
         return self._generic_sample("Collection",sample_size)
@@ -189,7 +185,6 @@ class Data(object):
             frames.append(this_d)
         return self.__class__(spots_pd=pd.concat(frames),impute = self.impute)
 
-
     def clean(self):
         """
         reduce to maximal common set of features
@@ -197,7 +192,6 @@ class Data(object):
         """
 
         return self.subset_ligand_batches(self.dense_ligand_batches())
-
 
     def spare_ligand_batches(self):
         return self.x.columns[self.x.isnull().any()].tolist()
@@ -211,14 +205,10 @@ class Data(object):
 
         #return Data(spots_pd=normalize_on_ligand_batch(self.spots_pd,ligand_batch=by))
 
-        pass
-
-
-
     @staticmethod
     def _pivot_table(spots_pd):
         indexes = ["Analyte Batch", "Collection", "Replica"]
-        data = spots_pd.pivot_table(index=indexes,columns="Ligand Batch", values="Intensity")
+        data = spots_pd.pivot_table(index=indexes, columns="Ligand Batch", values="Intensity")
         return data
 
     @staticmethod
@@ -228,8 +218,11 @@ class Data(object):
 
 
 class Analysis(object):
+    """ Main class providing analysis functionality.
 
-    def __init__(self, data, **kwargs ):
+    Includes classification code.
+    """
+    def __init__(self, data, **kwargs):
 
         self.train_test = kwargs.get('train_test', data.train_test_combinations)
         self.data = data
@@ -237,10 +230,10 @@ class Analysis(object):
         self.classifier_names = ["Nearest Neighbors",
                                  "Decision Tree",
                                  #"Random Forest",
-                                  #"AdaBoost",
+                                 #"AdaBoost",
                                  #"Gaussian NB",
                                  #"LDA",
-                                "LogisticRegression",
+                                 "LogisticRegression",
                                  ]
 
         self.classifiers = [
@@ -253,70 +246,70 @@ class Analysis(object):
             #LinearDiscriminantAnalysis(n_components=5),
             LogisticRegression(multi_class ="multinomial",solver='lbfgs'),
         ]
-
+        # self.result = None
 
     def calculate_all(self):
-         frames = []
+        frames = []
+        for c_name, c in zip(self.classifier_names,self.classifiers):
+            print("*"*5+c_name+"*"*5)
+            d = copy.deepcopy(self.train_test)
 
-         for c_name, c in zip(self.classifier_names,self.classifiers):
-             print("*"*5+c_name+"*"*5)
-             d = copy.deepcopy(self.train_test)
+            d["Model"] = c
+            d["Classifier Name"] = c_name
+            print("*"*5+"Fit Models"+"*"*5)
+            d["Model"] = d.apply(self._fit, axis=1, args=(self.data,))
+            print("*"*5+"Predict"+"*"*5)
+            d["Predictions"] = d.apply(self._predict , axis=1, args =(self.data,))
+            #print("*"*5+"Confusion Matrix"+"*"*5)
 
-             d["Model"] = c
-             d["Classifier Name"] = c_name
-             print("*"*5+"Fit Models"+"*"*5)
-             d["Model"] = d.apply(self._fit, axis=1, args=(self.data,))
-             print("*"*5+"Predict"+"*"*5)
-             d["Predictions"] = d.apply(self._predict , axis=1, args =(self.data,))
-             #print("*"*5+"Confusion Matrix"+"*"*5)
+            #d["Confusion Matrix"] = d.apply(self._confusion_matrix, axis=1, args=(self.data,))
+            #print("*"*5+"Score"+"*"*5)
 
-             #d["Confusion Matrix"] = d.apply(self._confusion_matrix, axis=1, args=(self.data,))
-             #print("*"*5+"Score"+"*"*5)
+            #d["Score"] = d.apply(self._score, axis=1, args=(self.data,))
+            #print("*"*5+"Score by Collection"+"*"*5)
 
-             #d["Score"] = d.apply(self._score, axis=1, args=(self.data,))
-             #print("*"*5+"Score by Collection"+"*"*5)
+            #d["Score by Collection"] = d.apply(self._score_by_collection,axis=1, args=(self.data,))
+            #print("*"*5+"Majority Score by Collection"+"*"*5)
 
-             #d["Score by Collection"] = d.apply(self._score_by_collection,axis=1, args=(self.data,))
-             #print("*"*5+"Majority Score by Collection"+"*"*5)
+            #d["Majority Score by Collection"] = d.apply(self._majority_score_by_collection, axis=1, args=(self.data,))
+            #print("*"*5+"True False"+"*"*5)
 
-             #d["Majority Score by Collection"] = d.apply(self._majority_score_by_collection, axis=1, args=(self.data,))
-             #print("*"*5+"True False"+"*"*5)
+            d["True False"] =d.apply(self._predicted_count_by_analyte_batch, axis=1, args=(self.data,))
 
-             d["True False"] =d.apply(self._predicted_count_by_analyte_batch, axis=1, args=(self.data,))
+            #print("*"*5+"Confusion Matrix by Collection"+"*"*5)
 
-             #print("*"*5+"Confusion Matrix by Collection"+"*"*5)
+            #d["Confusion Matrix by Collection"] = d.apply(self._confusion_matrix_by_collection, axis=1, args=(self.data,))
 
-             #d["Confusion Matrix by Collection"] = d.apply(self._confusion_matrix_by_collection, axis=1, args=(self.data,))
-
-             frames.append(d)
-         self.result = pd.concat(frames, ignore_index=True)
+            frames.append(d)
+        self.result = pd.concat(frames, ignore_index=True)
 
     def complete_information(self):
+        """ Returns DataFrame with main results.
+
+        :return:
+        """
         return pd.concat([pd.DataFrame(d) for d in self.result["True False"]])
 
-
-
-    def subset_collection(self,collections):
+    def subset_collection(self, collections):
         return self.data.subset_collection(collections)
 
     def box_plot(self, **kwargs):
-        assert hasattr(self, "result"), "First run .calcualte_all()"
+        assert hasattr(self, "result"), "First run .calculate_all()"
         self.result.boxplot(column="Score", by="Classifier Name")
 
-    def plot_confusion_matrixes(self,normalize=False, **kwargs):
+    def plot_confusion_matrixes(self, normalize=False, **kwargs):
         pass
-
 
     def confusion_matrix(self):
         assert hasattr(self, "result"), "First run .calcualte_all()"
         frames = []
-        for n , d in self.result.groupby("Classifier Name"):
-             d =  self.result["Confusion Matrix"].apply(lambda x: pd.DataFrame(list(x), index=self.data.y.columns, columns=self.data.y.columns)).sum().apply(self.norm,axis=1)
+        for n, d in self.result.groupby("Classifier Name"):
+             d = self.result["Confusion Matrix"].apply(lambda x: pd.DataFrame(list(x), index=self.data.y.columns,
+                                                                              columns=self.data.y.columns)).sum().apply(self.norm,axis=1)
              d["Classifier Name"] = n
              frames.append(d)
 
         return pd.concat(frames,levels="Classifier Name").reset_index().rename(columns={"index":"Analyte Batch"}).set_index(["Classifier Name","Analyte Batch"])
-
 
     def score_by_collection(self,stats=True):
         score = self.result["Score by Collection"].apply(lambda x: pd.Series(x))
@@ -330,7 +323,6 @@ class Analysis(object):
             return pd.concat(frames)
 
         return score
-
 
     def score(self):
         df = self.score_by_collection(False).set_index(self.result["Classifier Name"]).transpose()
@@ -355,7 +347,6 @@ class Analysis(object):
     def majority_score_mean(self):
          return self.majority_score().groupby(["Classifier Name", "Analyte Batch"]).mean()
 
-
     def all_score(self):
         return pd.concat([self.score_mean(),self.score_std(),self.majority_score_mean()], axis=1)
 
@@ -377,7 +368,7 @@ class Analysis(object):
     @staticmethod
     def _confusion_matrix(train_test_row, data):
         test_data = data.subset_collection(train_test_row["Test"])
-        return tuple(confusion_matrix(test_data.y_names,train_test_row["Predictions"],labels=test_data.y.columns))
+        return tuple(confusion_matrix(test_data.y_names,train_test_row["Predictions"], labels=test_data.y.columns))
 
     @staticmethod
     def _score(train_test_row, data):
@@ -388,7 +379,7 @@ class Analysis(object):
     def _score_by_collection(train_test_row, data):
         frames = {}
         test_data = data.subset_collection(train_test_row["Test"])
-        for c_name  in test_data.spots_pd["Collection"].unique():
+        for c_name in test_data.spots_pd["Collection"].unique():
             c_data = test_data.subset_collection([c_name])
             frames[c_name] = train_test_row["Model"].score( c_data.x,  c_data.y_names)
         return frames
@@ -397,10 +388,9 @@ class Analysis(object):
     def _confusion_matrix_by_collection(train_test_row, data):
         test_data = data.subset_collection(train_test_row["Test"])
         frames = {}
-        test_compersion = pd.DataFrame(test_data.y_names, index= test_data.x.index, columns=["y"])
-        test_compersion["Predictions"] = train_test_row["Predictions"]
-        for c_name , c_data in test_compersion.groupby(test_compersion.index.get_level_values("Collection")):
-
+        test_comparsion = pd.DataFrame(test_data.y_names, index= test_data.x.index, columns=["y"])
+        test_comparsion["Predictions"] = train_test_row["Predictions"]
+        for c_name, c_data in test_comparsion.groupby(test_comparsion.index.get_level_values("Collection")):
 
             frames[c_name] = confusion_matrix(c_data.y.values,c_data["Predictions"].values, labels=test_data.y.columns)
 
@@ -435,7 +425,6 @@ class Analysis(object):
 
         return test_comperison.to_dict()
 
-
     @staticmethod
     def norm(data):
         return data / data.sum()
@@ -447,22 +436,3 @@ class Analysis(object):
         c["std"] = column.std()
         c["count"] = column.count()
         return c
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

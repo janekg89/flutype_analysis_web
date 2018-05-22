@@ -1,4 +1,4 @@
-
+# Analysis scripts for FluType
 ## Overview
 
 The FluTypeDB project is a web application for the data management of binding assays 
@@ -15,9 +15,7 @@ FluTypeDB is developed for the data management and data analysis within the FluT
 by <b>Janek Grzegorzewski</b> (Universität Potsdam) and
 <b><a href="https://livermetabolism.com" target="_blank">Matthias König</a></b> (Humboldt Universität Berlin).
 
-
-This repository contains the piplines for preprocessing and  analysis.
-
+This repository contains the pipelines for pre-processing and analysis.
 
 
 ### License
@@ -28,7 +26,8 @@ This repository contains the piplines for preprocessing and  analysis.
 # Technical Documentation
 In this section technical information for setup is provided. For most analysis a local version of
 FlutypeDB (https://github.com/janekg89/flutype_analysis_web) is required to run.
-### Setup
+
+## Setup
 ```
 ...
 (flutype_webapp) python manage.py runserver
@@ -45,10 +44,16 @@ This applies all migrations and writes the database content.
 Create repository
 ```
 git clone https://github.com/janekg89/flutype_webapp_analysis.git
-mkvirtualenv flutype_webapp_analysis
+mkvirtualenv flutype_webapp_analysis --python=python3
 (flutype_webapp_analysis) pip install -r requirements.txt
 ```
-change path to flutype_webapp in ```./analysis2.py```
+Install kernel
+```
+(flutype_webapp_analysis) ipython kernel install --user --name=flutype_webapp_analysis
+```
+
+
+Change path to flutype_webapp in ```./analysis2.py```
 
 ```
 sys.path.append('/home/janekg89/Develop/Pycharm_Projects/flutype_webapp')
