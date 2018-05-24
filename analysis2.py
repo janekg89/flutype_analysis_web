@@ -1,25 +1,12 @@
 
-
-from __future__ import absolute_import, print_function, unicode_literals
-import sys
-import os
-
-#my webapp import
-
-# FLUTYPE_WEB_PATH = '/home/janekg89/Develop/Pycharm_Projects/flutype_webapp'
-FLUTYPE_WEB_PATH = '/home/mkoenig/git/flutype_webapp'
-
-sys.path.append(FLUTYPE_WEB_PATH)
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "flutype_webapp.settings")
-import django
-django.setup()
+from preprocessing import outlier_filtering, normalize_on_ligand_batch, mean_on_analyte_batch,\
+    mean_on_collection,ligand_batch_significance, mean_on_ligand_batch
 
 import pandas as pd
 import numpy as np
 import itertools
-import copy
+
 from utils import checkEqual
-from preprocessing import outlier_filtering, normalize_on_ligand_batch, mean_on_analyte_batch,mean_on_collection,ligand_batch_significance, mean_on_ligand_batch
 from sklearn.decomposition import PCA
 from sklearn.linear_model import LogisticRegression
 from sklearn.neighbors import  KNeighborsClassifier
@@ -252,7 +239,7 @@ class Analysis(object):
         frames = []
         for c_name, c in zip(self.classifier_names,self.classifiers):
             print("*"*5+c_name+"*"*5)
-            d = copy.deepcopy(self.train_test)
+            d = self.train_test.copy()
 
             d["Model"] = c
             d["Classifier Name"] = c_name

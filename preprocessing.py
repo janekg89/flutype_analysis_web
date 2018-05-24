@@ -85,15 +85,14 @@ def lowless_norm(spots, master_collection):
 
 def mean_on_analyte_batch(spots):
     """ Calculates variance on intensities. """
-    frames = []
+    frames = {}
     for name, data in spots.groupby(["Ligand Batch", "Analyte Batch"]):
         x = data.mean()
         x["Count"] = len(data)
         x["Intensity_std"] = data["Intensity"].std(ddof=1) / np.sqrt(len(data))
         x["Intensity_var"] = data["Intensity"].var()
         x["Intensity_rsd"] = data["Intensity"].std()/data["Intensity"].mean()
-        x.name = name
-        frames.append(x)
+        frames[name] = x
     mean_spots = pd.concat(frames, axis=1)
     return mean_spots.transpose().reset_index().rename(columns={"level_0":"Ligand Batch","level_1":"Analyte Batch"})
 
@@ -101,7 +100,6 @@ def mean_on_analyte_batch(spots):
 def mean_on_collection(spots):
     frames = []
     for name, data in spots.groupby(["Ligand Batch", "Collection", "Study", "Analyte Batch"]):
-
         x = data.mean()
         x["Count"] = len(data)
         x["Intensity_std"] = data["Intensity"].std(ddof=1) / np.sqrt(len(data))

@@ -46,15 +46,11 @@ Create repository
 git clone https://github.com/janekg89/flutype_webapp_analysis.git
 mkvirtualenv flutype_webapp_analysis --python=python3
 (flutype_webapp_analysis) pip install -r requirements.txt
+(flutype_webapp_analysis) pip install -e .
+cd path/to/flutype_webapp
+(flutype_webapp_analysis) pip install -e .
 ```
 Install kernel
 ```
 (flutype_webapp_analysis) ipython kernel install --user --name=flutype_webapp_analysis
-```
 
-
-Change path to flutype_webapp in ```./analysis2.py```
-
-```
-sys.path.append('/home/janekg89/Develop/Pycharm_Projects/flutype_webapp')
-```
