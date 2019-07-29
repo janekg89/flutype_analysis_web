@@ -15,6 +15,54 @@ from sklearn.ensemble import AdaBoostClassifier
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 from sklearn.metrics import confusion_matrix
 from sklearn.preprocessing import Imputer
+import matplotlib.pyplot as plt
+from skimage import exposure
+import matplotlib.patches as patches
+import attr
+
+def create_circle_patches(center, radius,c='r'):
+    rec = patches.Circle(
+        xy=center,
+        radius=radius,
+        fill=False,  # remove background
+        linewidth=2,
+        edgecolor=c,
+    )
+
+    return rec
+
+@attr.s
+class Spots(object):
+    df = attr.ib()
+    b_im = attr.ib(default=None)
+    a_im = attr.ib(default=None)
+
+
+    def plot_grid(self, on="a_im",c="r", **kwargs):
+        image = getattr(self,on)
+        if not kwargs.get("ax"):
+            fig, ax = plt.subplots(1, **kwargs)
+        else:
+            ax = kwargs.get("ax")
+
+        ax.imshow(exposure.equalize_hist(np.asarray(image)), cmap="gray")
+        #ax.imshow(np.asarray(image), cmap="gray")
+
+        for i, spot in self.df.iterrows():
+            circ = create_circle_patches((spot["Circle X"],spot["Circle Y"]) , spot["Circle Radius"],c=c)
+            rec = patches.Rectangle((spot["Square X Left"],spot["Square Y Left"]),
+                                    spot["Square X Right"] - spot["Square X Left"],
+                                    spot["Square Y Right"] - spot["Square Y Left"],
+                                    fill=False,  # remove background
+                                    linewidth=1,
+                                    edgecolor='g',
+                                    )
+            ax.add_patch(circ)
+            ax.add_patch(rec)
+
+        return ax
+
+
 
 
 class Data(object):
@@ -55,6 +103,13 @@ class Data(object):
                   'intensity',
                   'std',
                   'circle_quality',
+                  'circle__radius',
+                  'circle__x',
+                  'circle__y',
+                  'square__x_left',
+                  'square__y_left',
+                  'square__x_right',
+                  'square__y_right',
                   'raw_spot__raw_spot_collection__sid',
                   'raw_spot__raw_spot_collection__studies__sid',
                   'raw_spot__row',
@@ -71,6 +126,13 @@ class Data(object):
                            'Intensity',
                            'Std',
                            'Circle Quality',
+                           'Circle Radius',
+                           'Circle X',
+                           'Circle Y',
+                           'Square X Left',
+                           'Square Y Left',
+                           'Square X Right',
+                           'Square Y Right',
                            'Collection',
                            'Study',
                            'Row',
@@ -214,8 +276,8 @@ class Analysis(object):
         self.train_test = kwargs.get('train_test', data.train_test_combinations)
         self.data = data
 
-        self.classifier_names = ["Nearest Neighbors",
-                                 "Decision Tree",
+        self.classifier_names = [#"Nearest Neighbors",
+                                 #"Decision Tree",
                                  #"Random Forest",
                                  #"AdaBoost",
                                  #"Gaussian NB",
@@ -224,14 +286,14 @@ class Analysis(object):
                                  ]
 
         self.classifiers = [
-            KNeighborsClassifier(5),  # three nearest neighbors
-            DecisionTreeClassifier(random_state=1),
+            #KNeighborsClassifier(1),  # three nearest neighbors
+            #DecisionTreeClassifier(random_state=1),
             #RandomForestClassifier(n_estimators=np.shape(self.train_data)[1], random_state=1),
             #AdaBoostClassifier(),
             #GaussianNB(),
             #GaussianNB(),
             #LinearDiscriminantAnalysis(n_components=5),
-            LogisticRegression(multi_class ="multinomial",solver='lbfgs'),
+            LogisticRegression(multi_class ="multinomial",solver='lbfgs', max_iter=400),
         ]
         # self.result = None
 

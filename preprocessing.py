@@ -86,20 +86,22 @@ def lowless_norm(spots, master_collection):
 def mean_on_analyte_batch(spots):
     """ Calculates variance on intensities. """
     frames = {}
-    for name, data in spots.groupby(["Study", "Ligand Batch", "Analyte Batch"]):
+    for name, data in spots.groupby(["Study", "Ligand Batch", "Ligand","Analyte Batch"]):
+
         x = data.mean()
         x["Count"] = len(data)
         x["Intensity_std"] = data["Intensity"].std(ddof=1) / np.sqrt(len(data))
         x["Intensity_var"] = data["Intensity"].var()
         x["Intensity_rsd"] = data["Intensity"].std()/data["Intensity"].mean()
+
         frames[name] = x
     mean_spots = pd.concat(frames, axis=1)
-    return mean_spots.transpose().reset_index().rename(columns={"level_0":"Study","level_1":"Ligand Batch","level_2":"Analyte Batch"})
+    return mean_spots.transpose().reset_index().rename(columns={"level_0":"Study","level_1":"Ligand Batch","level_2":"Ligand","level_3":"Analyte Batch"})
 
 
 def mean_on_collection(spots):
     frames = []
-    for name, data in spots.groupby(["Ligand Batch", "Collection", "Study", "Analyte Batch"]):
+    for name, data in spots.groupby(["Ligand Batch", "Collection", "Study", "Analyte Batch","Ligand"]):
         x = data.mean()
         x["Count"] = len(data)
         x["Intensity_std"] = data["Intensity"].std(ddof=1) / np.sqrt(len(data))
@@ -108,7 +110,7 @@ def mean_on_collection(spots):
         x.name = name
         frames.append(x)
     mean_spots = pd.concat(frames, axis=1)
-    return mean_spots.transpose().reset_index().rename(columns={"level_0":"Ligand Batch","level_1":"Collection","level_2":"Study","level_3":"Analyte Batch"})
+    return mean_spots.transpose().reset_index().rename(columns={"level_0":"Ligand Batch","level_1":"Collection","level_2":"Study","level_3":"Analyte Batch","level_4":"Ligand"})
 
 
 def mean_on_ligand_batch(spots):
@@ -135,6 +137,9 @@ def ligand_batch_significance(spots):
             spots1_this_lb = spots1.loc[spots1["Ligand Batch"] == ligand_batch]
             spots2_this_lb = spots2.loc[spots2["Ligand Batch"] == ligand_batch]
 
+            ligand = spots2_this_lb["Ligand"].iloc[0]
+            ligand_concentration = spots2_this_lb["Ligand Batch Concentration"].iloc[0]
+
             v1_i = spots1_this_lb["Intensity"].iloc[0]
             v2_i = spots2_this_lb["Intensity"].iloc[0]
 
@@ -151,8 +156,8 @@ def ligand_batch_significance(spots):
             _, sig_max = ttest_ind_from_stats(v1_i,v1_err,v1_count,v2_i,v2_err,v2_count)
 
             fr = pd.Series(
-                [ligand_batch, (name1, name2), sig_max, v1_i, v2_i, v1_err, v2_err,v1_count,v2_count],
-                index=["Ligand Batch", "Analyte Batches", "Significance", "V1_I", "V2_I", "V1_Err", "V2_Err","V1_Count", "V2_Count"])
+                [ligand_batch,ligand, ligand_concentration, (name1, name2), sig_max, v1_i, v2_i, v1_err, v2_err,v1_count,v2_count],
+                index=["Ligand Batch", "Ligand", "Ligand Batch Concentration","Analyte Batches", "Significance", "V1_I", "V2_I", "V1_Err", "V2_Err","V1_Count", "V2_Count"])
             frames.append(fr)
 
     return pd.concat(frames, axis=1).transpose().dropna()

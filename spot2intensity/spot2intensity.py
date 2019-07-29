@@ -35,15 +35,19 @@ class Spots(object):
     a_im = attr.ib(default=None)
 
 
-    def plot_grid(self, on="a_im", **kwargs):
+    def plot_grid(self, on="a_im",c='g', **kwargs):
         image = getattr(self,on)
         if not kwargs.get("ax"):
             fig, ax = plt.subplots(1, **kwargs)
         else:
-            ax = kwargs.get("ax")
+            ax = kwargs["ax"]
 
         ax.imshow(exposure.equalize_hist(np.asarray(image)), cmap="gray")
         #ax.imshow(np.asarray(image), cmap="gray")
+        ax = self.plot_patches(ax=ax)
+        return ax
+
+    def plot_patches(self, ax, c="g"):
 
         for i, spot in self.df.iterrows():
             circ = create_circle_patches(spot["circles"].center, spot["circles"].radius)
@@ -52,10 +56,11 @@ class Spots(object):
                                     spot["squares"].get_height(),
                                     fill=False,  # remove background
                                     linewidth=1,
-                                    edgecolor='g',
+                                    edgecolor=c,
                                     )
             ax.add_patch(circ)
             ax.add_patch(rec)
+        return ax
 
     @staticmethod
     def load_pickel(collection):
@@ -82,7 +87,6 @@ class Spots(object):
     def raw_intensies_pivot(self):
         return self.df.pivot(index="Row",columns="Column",values="intensities")
 
-
     def quant1_intensies_pivot(self):
         return self.df.pivot(index="Row",columns="Column",values="intensities2")
 
@@ -95,6 +99,26 @@ class Spots(object):
     def circle_qual_intensies2_pivot(self):
         return self.df.pivot(index="Row",columns="Column",values="circle_qual")
 
+    def circle_pivot(self):
+        return self.df.pivot(index="Row",columns="Column",values="circles").applymap(circle_to_dict)
+
+    def square_pivot(self):
+        return self.df.pivot(index="Row",columns="Column",values="squares").applymap(square_to_dict)
+
+def circle_to_dict(circle):
+    circle_dict = {}
+    circle_dict["x"] = circle.center[0]
+    circle_dict["y"] = circle.center[1]
+    circle_dict["radius"] = circle.radius
+    return circle_dict
+
+def square_to_dict(square):
+    square_dict = {}
+    square_dict["x_left"] = square._x0
+    square_dict["x_right"] = square._x1
+    square_dict["y_left"] = square._y0
+    square_dict["y_right"] = square._y1
+    return square_dict
 
 
 class Collection(object):
@@ -190,8 +214,11 @@ class Collection(object):
         elif of == "tif_b":
             image_b = images_dict["tif_a"]
 
-        if image_b == None:
+
+
+        if type(image_b) == None:
             del values["intensities2_b"]
+
 
 
         equilized_image = exposure.equalize_hist(image)
@@ -226,11 +253,14 @@ class Collection(object):
                 intensities.append(spot_imag.sum())
 
                 circy, circx, radius, accums = find_circle_coordinates(spot_imag_eq)
+                #get rid of edge effects
+                radius = 0.9*radius
+
                 circle_qual.append(accums)
                 circ = create_circle_patches((circx + x0, circy + y0), radius)
                 circles.append(circ)
 
-                if not image_b == None:
+                if not type(image_b) == None:
                     spot_imag_b = image_b[y0:y0 + delta_x, x0:x0 + delta_y]
                     circ_points_b = np.array([value for (y, x), value in np.ndenumerate(spot_imag_b) if
                                         contained_in_circle(circy, x, circx, y, radius)])
@@ -321,6 +351,9 @@ class Collection(object):
         spots.quant1_intensies_pivot().to_csv(os.path.join(quant1_folder,"intensity.tsv"), sep=str('\t'))
         spots.circle_qual_intensies2_pivot().to_csv(os.path.join(quant1_folder,"circle_quality.tsv"), sep=str('\t'))
         spots.std_intensies2_pivot().to_csv(os.path.join(quant1_folder,"std.tsv"), sep=str('\t'))
+        spots.square_pivot().to_csv(os.path.join(quant1_folder,"square.tsv"), sep=str('\t'))
+        spots.circle_pivot().to_csv(os.path.join(quant1_folder,"circle.tsv"), sep=str('\t'))
+
 
 
     def r_meta_dict_raw(self):
@@ -335,6 +368,8 @@ class Collection(object):
         d["processing_type"] = "Fluorescence reader of microwell plate (mean on best fitfing circle of spot)"
         d["circle_quality"] = "circle_quality.tsv"
         d["std"] = "std.tsv"
+        d["circle"] = "circle.tsv"
+        d["square"] = "square.tsv"
         return d
 
     def r_meta_dict_before(self):
@@ -369,7 +404,7 @@ class Collection(object):
 def contained_in_circle(x0,x,y0,y,r):
     return r**2 >= (x0-x)**2 + (y0-y)**2
 
-def plot_patches(x, y, x_spacing, y_spacing):
+def plot_patches(x, y, x_spacing, y_spacing,c='g'):
     fig2 = plt.figure(figsize=(30, 10))
     ax2 = fig2.add_subplot(111, aspect='equal')
     pts = np.vstack([x, y]).reshape(2, -1).T
@@ -380,7 +415,7 @@ def plot_patches(x, y, x_spacing, y_spacing):
             y_spacing,
             fill=False,  # remove background
             linewidth=1,
-            edgecolor='r'
+            edgecolor=c,
         ) for patchcenter in pts
     ]:
         ax2.add_patch(p)
@@ -427,7 +462,7 @@ def find_circle_coordinates(image):
     edges = feature.canny(filters.gaussian(pic, sigma=4))
     #edges = feature.canny(pic)
     # Detect two radii
-    hough_radii = np.arange(6, 40, 2)
+    hough_radii = np.arange(10, 40, 2)
     hough_res = hough_circle(edges[5:-5,5:-5], hough_radii,full_output=False)
     # Select the most prominent  circle:
     accums, cx, cy, radii = hough_circle_peaks(hough_res, hough_radii, min_xdistance=hough_radii.min(),
@@ -440,4 +475,4 @@ def find_circle_coordinates(image):
         cy = [y/2]
         cx = [x/2]
 
-    return cy[0] , cx[0], radii[0], accums[0]
+    return cy[0]+5 , cx[0]+5, radii[0], accums[0]
